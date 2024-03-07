@@ -1,9 +1,22 @@
-const app = require('express');
-const app = express();
+const express = require('express');
 require('dotenv').config();
 
-app.get('/', () => {
+const app = express();
+
+app.
+app.use('/', () => {
     res.send('Hello World');
 });
+
+const accountApi = require("./src/routers/account");
+
+app.use('/', accountApi);
+
+
+
+
+
+
+
 
 app.listen(process.env.HTTP_PORT);
