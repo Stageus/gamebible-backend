@@ -3,7 +3,6 @@ require('dotenv').config();
 
 const app = express();
 
-app.
 app.use('/', () => {
     res.send('Hello World');
 });
