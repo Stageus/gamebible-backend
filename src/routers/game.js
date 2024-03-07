@@ -20,13 +20,31 @@ router.post('/request', async (req, res, next) => {
 });
 
 //위키목록불러오기
-router.get('/', async(req, res, next) => {
-    const lastIdx = req.query
-    try{
+router.get('/', async (req, res, next) => {
+    const { lastTitle } = req.query;
+    const result = {
+        data: {},
+    };
 
+    try {
+        const gameSelectSQLResult = pool.query(
+
+            `SELECT *
+            FROM game
+            WHERE deleted_at IS NULL 
+            AND title > $1
+            ORDER BY title ASC
+            LIMIT 10` ,
+            [lastTitle]
+        );
+
+        const gameList = gameSelectSQLResult.rows;
+        result.data = gameList;
+        console.log('result.data : ', result.data);
+        res.status(200).send(result);
     } catch (e) {
-
+        next(e);
     }
-})
+});
 
 module.exports = router;
