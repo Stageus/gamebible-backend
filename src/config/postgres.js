@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-const env = require('../../.env');
+require('dotenv').config;
 const psqlDBconfig = {
     host: process.env.PSQL_HOST,
     port: process.env.PSQL_PORT,
