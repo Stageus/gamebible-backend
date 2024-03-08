@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const {pool} = require('../config/postgres') 
 // pg반영
 
 //위키생성요청
@@ -49,7 +50,7 @@ router.get('/', async (req, res, next) => {
 router.get('/search', (req, res, next) => {
     const {search} = req.query; 
     try{
-        
+
 
     } catch(e){
         next(e);
