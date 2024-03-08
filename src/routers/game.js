@@ -28,13 +28,12 @@ router.get('/', async (req, res, next) => {
 
     try {
         const gameSelectSQLResult = pool.query(
-
             `SELECT *
             FROM game
             WHERE deleted_at IS NULL 
             AND title > $1
             ORDER BY title ASC
-            LIMIT 10` ,
+            LIMIT 20`,
             [lastTitle]
         );
 
@@ -45,6 +44,17 @@ router.get('/', async (req, res, next) => {
     } catch (e) {
         next(e);
     }
+});
+
+router.get('/search', (req, res, next) => {
+    const {search} = req.query; 
+    try{
+        
+
+    } catch(e){
+        next(e);
+    }
+
 });
 
 module.exports = router;
