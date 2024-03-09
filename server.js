@@ -19,5 +19,4 @@ app.use('/post', postApi);
 app.use('/comment', commentApi);
 app.use('/admin', adminApi);
 
-
 app.listen(process.env.HTTP_PORT);
