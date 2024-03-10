@@ -32,7 +32,6 @@ router.post('/', async (req, res, next) => {
 
 //게시판 보기 (게시글 목록보기)
 router.get('/', async (req, res, next) => {
-    const result = { data: null };
     try {
         const sql = `
         SELECT 
@@ -50,5 +49,12 @@ router.get('/', async (req, res, next) => {
             post.user_idx = user.idx
         ORDER BY
             post.idx DESC`;
-    } catch {}
+        const data = await pool.query(sql);
+        res.status(200).send({
+            data: data.rows,
+        });
+        const result = { data: null };
+    } catch (err) {
+        return next(err);
+    }
 });
