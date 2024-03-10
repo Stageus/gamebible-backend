@@ -2,6 +2,7 @@
 const router = require('express').Router();
 
 //Apis
+//사용자 토큰 받아주는 미들웨어 추가하기
 
 //게시글 쓰기
 //이 api는 프론트와 상의 후 수정하기로..
