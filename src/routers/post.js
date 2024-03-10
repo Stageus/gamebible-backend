@@ -53,7 +53,6 @@ router.get('/', async (req, res, next) => {
         res.status(200).send({
             data: data.rows,
         });
-        const result = { data: null };
     } catch (err) {
         return next(err);
     }
