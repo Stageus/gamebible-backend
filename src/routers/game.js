@@ -1,5 +1,6 @@
 const router = require('express').Router();
-// pg반영
+const { pool } = require('../config/postgres');
+
 
 //위키생성요청
 router.post('/request', async (req, res, next) => {
