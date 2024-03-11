@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const { pool } = require('../config/postgres');
 
-
 //위키생성요청
 router.post('/request', async (req, res, next) => {
     const { title } = req.body;
@@ -47,8 +46,10 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-//게임(위키불러오기)(가나다)
+//게임검색하기
 router.get('/search', async (req, res, next) => {
+    console.log('api실행0');
+
     const { title } = req.query;
     const result = {
         data: {},
@@ -56,12 +57,13 @@ router.get('/search', async (req, res, next) => {
     try {
         const sql = `SELECT *
                     FROM stageus.game
-                    WHERE title LIKE '%$1%'`;
+                    WHERE title LIKE '%' ||$1|| '%'`;
+
         const values = [title];
         const searchSQLResult = await pool.query(sql, values);
         const selectedGameList = searchSQLResult.rows;
+        console.log('selectedGameList: ', selectedGameList);
         result.data = selectedGameList;
-        console.log(result.data);
 
         res.status(200).send(result);
     } catch (e) {

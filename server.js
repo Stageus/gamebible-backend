@@ -5,24 +5,25 @@ const app = express();
 
 app.use(express.json());
 
-const accountApi = require('./src/routers/account');
+// const accountApi = require('./src/routers/account');
 const gameApi = require('./src/routers/game');
-const postApi = require('./src/routers/post');
-const commentApi = require('./src/routers/comment');
-const adminApi = require('./src/routers/admin');
+// const postApi = require('./src/routers/post');
+// const commentApi = require('./src/routers/comment');
+// const adminApi = require('./src/routers/admin');
 
-app.use('/account', accountApi);
+// app.use('/account', accountApi);
 app.use('/game', gameApi);
-app.use('/post', postApi);
-app.use('/comment', commentApi);
-app.use('/admin', adminApi);
+// app.use('/post', postApi);
+// app.use('/comment', commentApi);
+// app.use('/admin', adminApi);
 
 app.use((req, res, next) => {
     next({ status: 404, message: 'API 없음' });
 });
 
 app.use((err, req, res, next) => {
-    if (err.status) err.status = 500;
+    if (!err.status) err.status = 500;
+    console.log(err.status);
     res.status(err.status).send(err.stack);
 });
 
