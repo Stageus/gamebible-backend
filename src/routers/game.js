@@ -28,13 +28,12 @@ router.get('/', async (req, res, next) => {
 
     try {
         const gameSelectSQLResult = pool.query(
-
             `SELECT *
             FROM game
             WHERE deleted_at IS NULL 
             AND title > $1
             ORDER BY title ASC
-            LIMIT 10` ,
+            LIMIT 10`,
             [lastTitle]
         );
 
@@ -48,9 +47,25 @@ router.get('/', async (req, res, next) => {
 });
 
 //게임(위키불러오기)(가나다)
-router.get('/search', (req, res, next)=> {
-    const {title} = req.query;
-     
-})
+router.get('/search', async (req, res, next) => {
+    const { title } = req.query;
+    const result = {
+        data: {},
+    };
+    try {
+        const sql = `SELECT *
+                    FROM stageus.game
+                    WHERE title LIKE '%$1%'`;
+        const values = [title];
+        const searchSQLResult = await pool.query(sql, values);
+        const selectedGameList = searchSQLResult.rows;
+        result.data = selectedGameList;
+        console.log(result.data);
+
+        res.status(200).send(result);
+    } catch (e) {
+        next(e);
+    }
+});
 
 module.exports = router;
