@@ -10,7 +10,7 @@ router.post('/request', async (req, res, next) => {
         await Pool.query(
             `INSERT INTO request(user_idx, title) 
                         VALUES ( $1 ,$2 ) `,
-            [useridx, title]
+            [userIdx, title]
         );
 
         res.status(200).send();
@@ -46,5 +46,11 @@ router.get('/', async (req, res, next) => {
         next(e);
     }
 });
+
+//게임(위키불러오기)(가나다)
+router.get('/search', (req, res, next)=> {
+    const {title} = req.query;
+     
+})
 
 module.exports = router;
