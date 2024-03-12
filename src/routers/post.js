@@ -59,4 +59,35 @@ router.get('/', async (req, res, next) => {
     }
 });
 
+//게시글 상세보기
+router.get('/:postidx', async (req, res, next) => {
+    const gameIdx = req.query.game_idx;
+    try {
+        const sql = `
+        SELECT 
+            post.*,
+            user.nickname,
+            (
+                SELECT
+                    COUNT(user_idx)
+                FROM
+                    view
+                WHERE
+                    post_idx = $1
+            )
+        AS
+            view_count
+        FROM 
+            post
+        JOIN
+            user
+        ON
+            post.user_idx = user.idx
+        WHERE
+            post.idx = $1`;
+    } catch (err) {
+        return next(err);
+    }
+});
+
 module.exports = router;
