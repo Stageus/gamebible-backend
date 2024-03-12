@@ -48,8 +48,6 @@ router.get('/', async (req, res, next) => {
 
 //게임검색하기
 router.get('/search', async (req, res, next) => {
-    console.log('api실행0');
-
     const { title } = req.query;
     const result = {
         data: {},
@@ -71,4 +69,26 @@ router.get('/search', async (req, res, next) => {
     }
 });
 
+//인기게임목록불러오기(게시글순)
+router.get('/popular', async (req, res, next) => {
+    const { lastIdx } = req.query;
+    const result = {
+        data: {},
+    };
+    try {
+        const sql = `SELECT title
+                    FROM game
+                    WHERE 
+        `;
+        const values = [lastIdx];
+        const popularSelectSQLResult = await pool.query(sql, values);
+        const popularGameList = popularSelectSQLResult.rows;
+        console.log('popularGameList: ', popularGameList);
+        result.data = popularGameList;
+
+        res.status(200).send(result);
+    } catch (e) {
+        next(e);
+    }
+});
 module.exports = router;
