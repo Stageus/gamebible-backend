@@ -74,9 +74,7 @@ router.get('/:postidx', async (req, res, next) => {
                     view
                 WHERE
                     post_idx = $1
-            )
-        AS
-            view_count
+            ) AS view_count
         FROM 
             post
         JOIN
