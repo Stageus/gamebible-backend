@@ -21,6 +21,7 @@ app.use((req, res, next) => {
     next({ status: 404, message: 'API 없음' });
 });
 
+app.listen(process.env.HTTP_PORT);
 app.use((err, req, res, next) => {
     if (err.status) err.status = 500;
     res.status(err.status).send(err.stack);
