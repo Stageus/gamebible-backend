@@ -1,8 +1,11 @@
 const router = require('express').Router();
-const { pool } = require('../config/postgres.js');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
+const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
+const generateVerificationCode = require('../modules/generateVerificationCode');
+const sendVerificationEmail = require('../modules/sendVerificationEmail');
 
 //로그인
 router.post('/auth', async (req, res, next) => {
@@ -66,16 +69,21 @@ router.post('/id/check', async (req, res, next) => {
     }
 });
 
-//이메일 중복 확인
+//이메일 중복 확인/인증
 router.post('/email/check', async (req, res, next) => {
     try {
         const { email } = req.body;
 
         const checkEmailSql = 'SELECT * FROM "user" WHERE email = $1';
         const emailResults = await pool.query(checkEmailSql, [email]);
-        if (emailResults.rows.length > 0) return res.status(409).send('이메일이 이미 존재합니다.');
-
-        return res.status(200).send('사용 가능한 이메일입니다.');
+        if (emailResults.rows.length > 0) {
+            return res.status(409).send('이메일이 이미 존재합니다.');
+        } else {
+            //사용 가능한 이메일인 경우 인증 코드 생성 및 이메일 전송
+            const verificationCode = generateVerificationCode();
+            await sendVerificationEmail(email, verificationCode);
+            return res.status(200).send('인증 코드가 발송되었습니다.');
+        }
     } catch (e) {
         next(e);
     }
