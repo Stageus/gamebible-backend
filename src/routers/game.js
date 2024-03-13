@@ -207,11 +207,17 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     };
     try {
         //내용만 보여줘야하는지? -> 작성일, 작성자(들)
-        const sql = `SELECT content, created_at 
-                    FROM history
-                    WHERE game_idx = $1
-                    order by created_at DESC
-                    limit 1`;
+        const sql = `
+        SELECT 
+            content, created_at 
+        FROM 
+            history
+        WHERE 
+            game_idx = $1
+        order by 
+            created_at DESC
+        limit 
+            1`;
         const values = [gameIdx];
 
         const getHistorySQLResult = await pool.query(sql, values);
