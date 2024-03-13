@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const { pool } = require('../config/postgres.js');
-const checkLogin = require('../modules/checkLogin');
 const jwt = require('jsonwebtoken');
+
+const checkLogin = require('../modules/checkLogin');
 
 router.post('/auth', async (req, res, next) => {
     const { id, pw } = req.body;
@@ -44,6 +45,21 @@ router.post('/', async (req, res, next) => {
         const insertAccountSql = 'INSERT INTO account_local (user_idx, id, pw) VALUES ($1, $2, $3)';
         await pool.query(insertAccountSql, [userIdx, id, pw]);
         return res.status(200).send('회원가입 성공');
+    } catch (e) {
+        next(e);
+    }
+});
+
+//아이디 중복 확인
+router.post('/id/check', async (req, res, next) => {
+    try {
+        const { id } = req.body;
+
+        const checkIdSql = 'SELECT * FROM account_local WHERE id = $1';
+        const idResults = await pool.query(checkIdSql, [id]);
+        if (idResults.rows.length > 0) return res.status(409).send('아이디가 이미 존재합니다.');
+
+        return res.status(200).send('사용 가능한 아이디입니다.');
     } catch (e) {
         next(e);
     }
