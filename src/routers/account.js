@@ -6,6 +6,14 @@ const checkLogin = require('../modules/checkLogin');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
 const deleteCode = require('../modules/deleteCode');
+const {
+    validateId,
+    validateEmail,
+    validatePassword,
+    validatePasswordMatch,
+    validateNickname,
+    handleValidationErrors,
+} = require('../middlewares/validator');
 deleteCode(pool);
 //로그인
 router.post('/auth', async (req, res, next) => {
@@ -37,22 +45,36 @@ router.post('/auth', async (req, res, next) => {
 });
 
 // 회원가입
-router.post('/', async (req, res, next) => {
-    const { id, pw, pw_same, nickname, email, isadmin } = req.body;
+router.post(
+    '/',
+    [
+        validateId,
+        validateEmail,
+        validatePassword,
+        validatePasswordMatch,
+        validateNickname,
+        handleValidationErrors,
+    ],
+    async (req, res, next) => {
+        const { id, pw, pw_same, nickname, email, isadmin } = req.body;
 
-    try {
-        const insertUserSql =
-            'INSERT INTO "user" (nickname, email, is_admin) VALUES ($1, $2, $3) RETURNING idx';
-        const userResult = await pool.query(insertUserSql, [nickname, email, isadmin]);
-        const userIdx = userResult.rows[0].idx;
+        try {
+            //비밀번호 해싱 구현하기
 
-        const insertAccountSql = 'INSERT INTO account_local (user_idx, id, pw) VALUES ($1, $2, $3)';
-        await pool.query(insertAccountSql, [userIdx, id, pw]);
-        return res.status(200).send('회원가입 성공');
-    } catch (e) {
-        next(e);
+            const insertUserSql =
+                'INSERT INTO "user" (nickname, email, is_admin) VALUES ($1, $2, $3) RETURNING idx';
+            const userResult = await pool.query(insertUserSql, [nickname, email, isadmin]);
+            const userIdx = userResult.rows[0].idx;
+
+            const insertAccountSql =
+                'INSERT INTO account_local (user_idx, id, pw) VALUES ($1, $2, $3)';
+            await pool.query(insertAccountSql, [userIdx, id, pw]);
+            return res.status(200).send('회원가입 성공');
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 //아이디 중복 확인
 router.post('/id/check', async (req, res, next) => {
