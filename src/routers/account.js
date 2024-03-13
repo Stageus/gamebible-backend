@@ -17,10 +17,13 @@ router.post('/', async (req, res, next) => {
     const { id, pw, pw_same, nickname, email, isadmin } = req.body;
 
     try {
-        // 회원가입 처리
         const insertUserSql =
-            'INSERT INTO user (id, password, nickname, email, isadmin) VALUES ($1, $2, $3, $4, $5)';
-        await pool.query(insertUserSql, [id, pw, nickname, email, isadmin]);
+            'INSERT INTO "user" (nickname, email, is_admin) VALUES ($1, $2, $3) RETURNING idx';
+        const userResult = await pool.query(insertUserSql, [nickname, email, isadmin]);
+        const userIdx = userResult.rows[0].idx;
+
+        const insertAccountSql = 'INSERT INTO account_local (user_idx, id, pw) VALUES ($1, $2, $3)';
+        await pool.query(insertAccountSql, [userIdx, id, pw]);
         return res.status(200).send('회원가입 성공');
     } catch (e) {
         next(e);
