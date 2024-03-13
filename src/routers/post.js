@@ -88,4 +88,48 @@ router.get('/:postidx', async (req, res, next) => {
     }
 });
 
+//게시글 검색하기
+router.get('/search', async (req, res, next) => {
+    const { keyword } = req.query;
+    try {
+        const sql = `
+        SELECT 
+            post.title, 
+            post.created_at, 
+            user.nickname,
+            (
+                SELECT
+                    COUNT(user_idx)
+                FROM
+                    view
+                WHERE
+                    view.post_idx = $1
+            ) AS view_count,
+            (
+                SELECT
+                game.title,
+                game.idx,
+
+            )
+            
+            ()
+        FROM 
+            post 
+        JOIN 
+            "user"
+        ON 
+            post.user_idx = user.idx
+        WHERE
+            post.title = ${`keyword`}
+        ORDER BY
+            post.idx DESC`;
+        const data = await pool.query(sql);
+        res.status(200).send({
+            data: data.rows,
+        });
+    } catch (err) {
+        return next(err);
+    }
+});
+
 module.exports = router;
