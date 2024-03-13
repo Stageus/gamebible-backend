@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const moment = require('moment');
 const { pool } = require('../config/postgres');
 
 //위키생성요청
@@ -97,5 +98,37 @@ router.get('/popular', async (req, res, next) => {
     } catch (e) {
         next(e);
     }
+});
+
+//히스토리목록 보기
+router.get('/:gameidx/history', async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    const result = {
+        data: {},
+    };
+    try {
+        // createdAt, user nickname
+        const sql = `SELECT h.created_at, u.nickname 
+                    FROM history h 
+                    JOIN "user" u
+                    ON h.user_idx = u.idx
+                    WHERE game_idx = $1`;
+        const values = [gameIdx];
+        const selectHistorySQLResult = await pool.query(sql, values);
+        const beforeHistoryList = selectHistorySQLResult.rows;
+
+        let createdAt;
+        let nickname;
+        let history;
+        beforeHistoryList.forEach((element) => {
+            createdAt = moment(element.created_at).format('YYYY-MM-DD');
+            console.log('createdAt : ');
+            console.log(createdAt);
+        });
+
+        console.log('historyList: ', historyList);
+
+        res.status(200).send(result);
+    } catch (e) {}
 });
 module.exports = router;
