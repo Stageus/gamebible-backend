@@ -1,12 +1,31 @@
 const router = require('express').Router();
-const { pool } = require('../config/postgres.js'); // './db'는 db.js 파일의 경로를
+const { pool } = require('../config/postgres.js');
+const checkLogin = require('../modules/checkLogin');
+const jwt = require('jsonwebtoken');
 
-// 로그인
 router.post('/auth', async (req, res, next) => {
     const { id, pw } = req.body;
     try {
-        await pool.query(`SELECT * FROM account_local WHERE id = $1 AND pw = $2`, [id, pw]);
-        res.status(200).send('로그인 성공');
+        const loginsql = `SELECT * FROM account_local WHERE id = $1 AND pw = $2`;
+        const { rows } = await pool.query(loginsql, [id, pw]);
+
+        if (rows.length === 0) {
+            return res.status(401).send({ message: '인증 실패' });
+        }
+
+        const login = rows[0];
+
+        const token = jwt.sign(
+            {
+                idx: login.idx,
+            },
+            process.env.SECRET_KEY,
+            {
+                expiresIn: '5h',
+            }
+        );
+
+        res.status(200).send({ message: '로그인 성공', token: token });
     } catch (e) {
         next(e);
     }
