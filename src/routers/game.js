@@ -165,4 +165,30 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
     }
 });
 
+//위키 자세히보기
+router.get('/:gameidx/wiki', async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    const result = {
+        data: {},
+    };
+    try {
+        //내용만 보여줘야하는지? -> 작성일, 작성자(들)
+        const sql = `SELECT content, created_at 
+                    FROM history
+                    WHERE game_idx = $1
+                    order by created_at DESC
+                    limit 1`;
+        const values = [gameIdx];
+
+        const getHistorySQLResult = await pool.query(sql, values);
+        const history = getHistorySQLResult.rows;
+
+        result.data = history;
+
+        res.status(200).send(result);
+    } catch (e) {
+        next(e);
+    }
+});
+
 module.exports = router;
