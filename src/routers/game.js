@@ -148,10 +148,16 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
         data: {},
     };
     try {
-        const sql = `SELECT * 
-                     FROM history
-                     WHERE idx = $1
-                     AND game_idx = $2`;
+        const sql = `
+        SELECT    
+              * 
+        FROM 
+            history
+        WHERE 
+            idx = $1
+        AND 
+            game_idx = $2`;
+
         const values = [historyIdx, gameIdx];
         const getHistorySQLResult = await pool.query(sql, values);
         const history = getHistorySQLResult.rows;
