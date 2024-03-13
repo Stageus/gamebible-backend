@@ -31,8 +31,10 @@ router.post('/', async (req, res, next) => {
     }
 });
 
+console.log('실행');
 //게시판 보기 (게시글 목록보기)
 router.get('/', async (req, res, next) => {
+    const gameIdx = req.query.gameidx;
     try {
         const sql = `
         SELECT 
@@ -46,13 +48,17 @@ router.get('/', async (req, res, next) => {
             user ON post.user_idx = user.idx
         JOIN
             view ON post.idx = view.post_idx
+        WHERE
+            game_idx = $1
         GROUP BY
-            post.idx, post.title, post.created_at, user.nickname
+            post.idx
         ORDER BY
             post.idx DESC`;
-        const data = await pool.query(sql);
+        const values = [gameIdx];
+        const data = await pool.query(sql, values);
+        const result = data.rows;
         res.status(200).send({
-            data: data.rows,
+            data: result,
         });
     } catch (err) {
         return next(err);
@@ -105,14 +111,6 @@ router.get('/search', async (req, res, next) => {
                 WHERE
                     view.post_idx = $1
             ) AS view_count,
-            (
-                SELECT
-                game.title,
-                game.idx,
-
-            )
-            
-            ()
         FROM 
             post 
         JOIN 
