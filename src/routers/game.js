@@ -55,9 +55,15 @@ router.get('/search', async (req, res, next) => {
         data: {},
     };
     try {
-        const sql = `SELECT *
-                    FROM stageus.game
-                    WHERE title LIKE '%' ||$1|| '%'`;
+        const sql = `
+        SELECT 
+            *
+        FROM 
+            stageus.game
+        WHERE 
+            title 
+        LIKE 
+            '%' ||$1|| '%'`;
 
         const values = [title];
         const searchSQLResult = await pool.query(sql, values);
