@@ -237,8 +237,11 @@ router.put('/:gameidx/wiki', async (req, res, next) => {
     const { userIdx } = req.user;
     const { content } = req.body;
     try {
-        const sql = `INSERT INTO history(game_idx, user_idx, content)
-                    VALUES ($1, $2, $3)`;
+        const sql = `
+        INSERT INTO 
+            history(game_idx, user_idx, content)
+        VALUES 
+            ($1, $2, $3)`;
         const values = [gameIdx, userIdx, content];
         await pool.query(sql, values);
 
