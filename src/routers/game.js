@@ -29,15 +29,21 @@ router.get('/', async (req, res, next) => {
     };
 
     try {
-        const gameSelectSQLResult = pool.query(
-            `SELECT *
-            FROM game
-            WHERE deleted_at IS NULL 
-            AND title > $1
-            ORDER BY title ASC
-            LIMIT 10`,
-            [lastTitle]
-        );
+        const sql = `
+        SELECT 
+            *
+        FROM 
+            game
+        WHERE 
+            deleted_at IS NULL 
+        AND 
+            title > $1
+        ORDER BY 
+            title ASC
+        LIMIT 
+            10`;
+        const values = [lastTitle];
+        const gameSelectSQLResult = pool.query(sql, values);
 
         const gameList = gameSelectSQLResult.rows;
         result.data = gameList;
