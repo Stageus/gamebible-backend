@@ -39,9 +39,12 @@ router.get('/', async (req, res, next) => {
             post.title, 
             post.created_at, 
             user.nickname,
-            COUNT(view.user_idx)
-        AS
-            view_count
+            (
+                SELECT
+                    COUNT(user_idx)
+                FROM
+                    view
+            ) AS view_count
         FROM 
             post 
         JOIN 
