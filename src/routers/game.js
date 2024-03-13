@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
+const { timeStamp } = require('console');
 
 //위키생성요청
 router.post('/request', async (req, res, next) => {
@@ -119,16 +120,23 @@ router.get('/:gameidx/history', async (req, res, next) => {
 
         let createdAt;
         let nickname;
-        let history;
-        beforeHistoryList.forEach((element) => {
-            createdAt = moment(element.created_at).format('YYYY-MM-DD');
-            console.log('createdAt : ');
-            console.log(createdAt);
-        });
+        let timeStamp;
+        let historyTitle;
+        let historyList = [];
 
-        console.log('historyList: ', historyList);
+        beforeHistoryList.forEach((element) => {
+            timeStamp = element.created_at;
+            nickname = element.nickname;
+            createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
+
+            historyTitle = createdAt + ' ' + nickname;
+            historyList.push(historyTitle);
+        });
+        result.data = historyList;
 
         res.status(200).send(result);
-    } catch (e) {}
+    } catch (e) {
+        next(e);
+    }
 });
 module.exports = router;
