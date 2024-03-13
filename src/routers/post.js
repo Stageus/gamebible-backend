@@ -39,18 +39,15 @@ router.get('/', async (req, res, next) => {
             post.title, 
             post.created_at, 
             user.nickname,
-            (
-                SELECT
-                    COUNT(user_idx)
-                FROM
-                    view
-            ) AS view_count
+            COUNT(view.user_idx) AS view_count
         FROM 
             post 
         JOIN 
-            user
-        ON 
-            post.user_idx = user.idx
+            user ON post.user_idx = user.idx
+        JOIN
+            view ON post.idx = view.post_idx
+        GROUP BY
+            post.idx, post.title, post.created_at, user.nickname
         ORDER BY
             post.idx DESC`;
         const data = await pool.query(sql);
