@@ -9,11 +9,13 @@ router.post('/request', async (req, res, next) => {
     const { userIdx } = req.user;
     // 미들웨어에 authorization 반영
     try {
-        await Pool.query(
-            `INSERT INTO request(user_idx, title) 
-                        VALUES ( $1 ,$2 ) `,
-            [userIdx, title]
-        );
+        const sql = `
+        INSERT INTO 
+            request(user_idx, title) 
+        VALUES 
+            ( $1 ,$2 ) `;
+        const values = [userIdx, title];
+        await Pool.query(sql, values);
 
         res.status(200).send();
     } catch (e) {
