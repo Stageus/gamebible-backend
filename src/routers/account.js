@@ -69,6 +69,22 @@ router.post('/id/check', async (req, res, next) => {
     }
 });
 
+//닉네임 중복 확인
+router.post('/nickname/check', async (req, res, next) => {
+    try {
+        const { nickname } = req.body;
+
+        const checkNicknameSql = 'SELECT * FROM "user" WHERE nickname = $1';
+        const nicknameResults = await pool.query(checkNicknameSql, [nickname]);
+        if (nicknameResults.rows.length > 0)
+            return res.status(409).send('닉네임이 이미 존재합니다.');
+
+        return res.status(200).send('사용 가능한 닉네임입니다.');
+    } catch (e) {
+        next(e);
+    }
+});
+
 //이메일 중복 확인/인증
 router.post('/email/check', async (req, res, next) => {
     try {

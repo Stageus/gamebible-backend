@@ -22,6 +22,7 @@
     "passport": "^0.7.0",
     "passport-kakao": "^1.0.1",
     "pg": "^8.11.3",
-    "redis": "^4.6.13"
+    "redis": "^4.6.13",
+    "validator": "^13.11.0"
   }
 }
