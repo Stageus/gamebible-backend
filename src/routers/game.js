@@ -191,4 +191,21 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     }
 });
 
+//위키수정하기
+router.put('/:gameidx/wiki', async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    const { userIdx } = req.user;
+    const { content } = req.body;
+    try {
+        const sql = `INSERT INTO history(game_idx, user_idx, content)
+                    VALUES ($1, $2, $3)`;
+        const values = [gameIdx, userIdx, content];
+        await pool.query(sql, values);
+
+        res.status(200).send();
+    } catch (e) {
+        next(e);
+    }
+});
+
 module.exports = router;
