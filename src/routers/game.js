@@ -139,4 +139,30 @@ router.get('/:gameidx/history', async (req, res, next) => {
         next(e);
     }
 });
+
+//히스토리 자세히보기
+router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
+    const historyIdx = req.params.historyidx;
+    const gameIdx = req.params.gameidx;
+    const result = {
+        data: {},
+    };
+    try {
+        const sql = `SELECT * 
+                     FROM history
+                     WHERE idx = $1
+                     AND game_idx = $2`;
+        const values = [historyIdx, gameIdx];
+        const getHistorySQLResult = await pool.query(sql, values);
+        const history = getHistorySQLResult.rows;
+
+        //히스토리 자세히보기에서 content만 있으면되는지? -> 게임제목, 시간, 작성자
+        result.data = history;
+
+        res.status(200).send(result);
+    } catch (e) {
+        next(e);
+    }
+});
+
 module.exports = router;
