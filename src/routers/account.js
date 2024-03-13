@@ -128,4 +128,25 @@ router.post('/email/auth', async (req, res, next) => {
     }
 });
 
+// 아이디 찾기
+router.get('/id', async (req, res, next) => {
+    const { email } = req.query;
+    try {
+        const findIdxSql = 'SELECT idx FROM "user" WHERE email = $1';
+        const results = await pool.query(findIdxSql, [email]);
+
+        if (results.length === 0) {
+            return res.status(400).send(createResult('일치하는 사용자가 없습니다.'));
+        }
+        const findIdSql = 'SELECT id FROM account_local WHERE user_idx = $1';
+        const idResults = await pool.query(findIdSql, [results.rows[0].idx]);
+
+        const foundId = idResults.rows[0].id;
+        console.log(foundId);
+        return res.status(200).send({ id: foundId });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
