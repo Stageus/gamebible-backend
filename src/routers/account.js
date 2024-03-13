@@ -5,8 +5,8 @@ const { pool } = require('../config/postgres.js'); // './db'는 db.js 파일의 
 router.post('/auth', async (req, res, next) => {
     const { id, pw } = req.body;
     try {
-        await pool.query(`SELECT * FROM user WHERE id = $1 AND password = $2`, [id, pw]);
-        res.status(200).send();
+        await pool.query(`SELECT * FROM account_local WHERE id = $1 AND pw = $2`, [id, pw]);
+        res.status(200).send('로그인 성공');
     } catch (e) {
         next(e);
     }
