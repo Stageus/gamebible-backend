@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 
 const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
-
+const deleteCode = require('../modules/deleteCode');
+deleteCode(pool);
 //로그인
 router.post('/auth', async (req, res, next) => {
     const { id, pw } = req.body;

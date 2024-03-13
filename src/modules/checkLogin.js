@@ -32,7 +32,6 @@ const checkLogin = (req, res, next) => {
                 message = '인증에 실패했습니다.';
                 break;
         }
-
         res.status(statusCode).send(message);
     }
 };
