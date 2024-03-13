@@ -79,15 +79,23 @@ router.get('/popular', async (req, res, next) => {
         data: {},
     };
     try {
-        const sql = `SELECT g.title, count(g.title)
-                    FROM game g
-                    RIGHT JOIN post p
-                    ON g.idx = p.game_idx
-                    group by g.title 
-                    order by count DESC
-                    limit 10
-                    OFFSET $1
-                    `;
+        const sql = `
+        SELECT 
+            g.title, count(g.title)
+        FROM
+            game g
+        RIGHT JOIN 
+            post p
+        ON 
+            g.idx = p.game_idx
+        group by 
+            g.title 
+        order by 
+            count DESC
+        limit 
+            10
+        OFFSET 
+            $1`;
 
         const values = [lastIdx];
         const popularSelectSQLResult = await pool.query(sql, values);
@@ -101,7 +109,7 @@ router.get('/popular', async (req, res, next) => {
     }
 });
 
-//히스토리목록 보기
+//히스토리 목록보기
 router.get('/:gameidx/history', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const result = {
