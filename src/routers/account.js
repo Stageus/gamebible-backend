@@ -79,10 +79,33 @@ router.post('/email/check', async (req, res, next) => {
         if (emailResults.rows.length > 0) {
             return res.status(409).send('이메일이 이미 존재합니다.');
         } else {
-            //사용 가능한 이메일인 경우 인증 코드 생성 및 이메일 전송
             const verificationCode = generateVerificationCode();
+            const insertQuery = `
+            INSERT INTO email_verification (email, code )
+            VALUES ($1, $2 )
+        `;
+            await pool.query(insertQuery, [email, verificationCode]);
             await sendVerificationEmail(email, verificationCode);
             return res.status(200).send('인증 코드가 발송되었습니다.');
+        }
+    } catch (e) {
+        next(e);
+    }
+});
+
+//이메일 인증 확인
+router.post('/email/auth', async (req, res, next) => {
+    try {
+        const { email, code } = req.body;
+
+        const queryResult = await pool.query(
+            'SELECT * FROM email_verification WHERE email = $1 AND code = $2',
+            [email, code]
+        );
+        if (queryResult.rows.length > 0) {
+            res.status(200).send('이메일 인증이 완료되었습니다.');
+        } else {
+            res.status(400).send('잘못된 인증 코드입니다.');
         }
     } catch (e) {
         next(e);
