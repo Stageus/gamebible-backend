@@ -70,16 +70,23 @@ router.get('/search', async (req, res, next) => {
 });
 
 //인기게임목록불러오기(게시글순)
+// 10개 단위로 불러오기
 router.get('/popular', async (req, res, next) => {
     const { lastIdx } = req.query;
     const result = {
         data: {},
     };
     try {
-        const sql = `SELECT title
-                    FROM game
-                    WHERE 
-        `;
+        const sql = `SELECT g.title, count(g.title)
+                    FROM game g
+                    RIGHT JOIN post p
+                    ON g.idx = p.game_idx
+                    group by g.title 
+                    order by count DESC
+                    limit 10
+                    OFFSET $1
+                    `;
+
         const values = [lastIdx];
         const popularSelectSQLResult = await pool.query(sql, values);
         const popularGameList = popularSelectSQLResult.rows;
