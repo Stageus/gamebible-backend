@@ -22,8 +22,7 @@ app.use((req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
-    if (!err.status) err.status = 500;
-    res.status(err.status).send(err.stack);
+    res.status(err.status || 500).send(err.stack);
 });
 
 app.listen(process.env.HTTP_PORT, () => {
