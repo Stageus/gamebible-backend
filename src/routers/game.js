@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
-const { timeStamp } = require('console');
 
 //위키생성요청
 router.post('/request', async (req, res, next) => {
@@ -190,7 +189,6 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
         const getHistorySQLResult = await pool.query(sql, values);
         const history = getHistorySQLResult.rows;
 
-        //히스토리 자세히보기에서 content만 있으면되는지? -> 게임제목, 시간, 작성자
         result.data = history;
 
         res.status(200).send(result);
@@ -206,7 +204,6 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
         data: {},
     };
     try {
-        //내용만 보여줘야하는지? -> 작성일, 작성자(들)
         const sql = `
         SELECT 
             content, created_at 
