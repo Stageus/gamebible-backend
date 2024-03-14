@@ -14,7 +14,7 @@ router.post('/request', async (req, res, next) => {
         VALUES 
             ( $1 ,$2 ) `;
         const values = [userIdx, title];
-        await Pool.query(sql, values);
+        await pool.query(sql, values);
 
         res.status(200).send();
     } catch (e) {
