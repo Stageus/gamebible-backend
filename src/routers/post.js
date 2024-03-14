@@ -50,7 +50,7 @@ router.get('/', async (req, res, next) => {
         JOIN
             "user" ON post.user_idx = "user".idx
         WHERE
-            post.game_idx = 4
+            post.game_idx = $1
         GROUP BY
             post.idx, "user".nickname
         ORDER BY
@@ -68,12 +68,12 @@ router.get('/', async (req, res, next) => {
 
 //게시글 상세보기
 router.get('/:postidx', async (req, res, next) => {
-    const gameIdx = req.query.game_idx;
+    const postIdx = req.query.postidx;
     try {
         const sql = `
         SELECT 
             post.*,
-            user.nickname,
+            "user".nickname,
             (
                 SELECT
                     COUNT(user_idx)
@@ -85,11 +85,15 @@ router.get('/:postidx', async (req, res, next) => {
         FROM 
             post
         JOIN
-            user
-        ON
-            post.user_idx = user.idx
+            "user" ON post.user_idx = "user".idx
         WHERE
             post.idx = $1`;
+        const values = [postIdx];
+        const data = await pool.query(sql, values);
+        const result = data.rows;
+        res.status(200).send({
+            data: result,
+        });
     } catch (err) {
         return next(err);
     }
