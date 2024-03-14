@@ -56,6 +56,7 @@ router.get('/', async (req, res, next) => {
 });
 
 //게임검색하기
+//게임검색하기
 router.get('/search', async (req, res, next) => {
     const { title } = req.query;
     const result = {
@@ -75,7 +76,6 @@ router.get('/search', async (req, res, next) => {
         const values = [title];
         const searchSQLResult = await pool.query(sql, values);
         const selectedGameList = searchSQLResult.rows;
-        console.log('selectedGameList: ', selectedGameList);
         result.data = selectedGameList;
 
         res.status(200).send(result);
