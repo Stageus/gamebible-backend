@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
+const { body } = require('express-validator');
 
 const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
@@ -16,39 +17,49 @@ const {
 } = require('../middlewares/validator');
 deleteCode(pool);
 //로그인
-router.post('/auth', async (req, res, next) => {
-    const { id, pw } = req.body;
-    try {
-        const loginsql = `
+router.post(
+    '/auth',
+    body('id')
+        .trim()
+        .isAlphanumeric()
+        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
+        .isLength({ min: 4, max: 12 })
+        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { id, pw } = req.body;
+        try {
+            const loginsql = `
         SELECT
             * 
         FROM
             account_local
         WHERE
             id = $1 AND pw = $2`;
-        const { rows } = await pool.query(loginsql, [id, pw]);
+            const { rows } = await pool.query(loginsql, [id, pw]);
 
-        if (rows.length === 0) {
-            return res.status(401).send({ message: '인증 실패' });
-        }
-
-        const login = rows[0];
-
-        const token = jwt.sign(
-            {
-                idx: login.idx,
-            },
-            process.env.SECRET_KEY,
-            {
-                expiresIn: '5h',
+            if (rows.length === 0) {
+                return res.status(401).send({ message: '인증 실패' });
             }
-        );
 
-        res.status(200).send({ message: '로그인 성공', token: token });
-    } catch (e) {
-        next(e);
+            const login = rows[0];
+
+            const token = jwt.sign(
+                {
+                    idx: login.idx,
+                },
+                process.env.SECRET_KEY,
+                {
+                    expiresIn: '5h',
+                }
+            );
+
+            res.status(200).send({ message: '로그인 성공', token: token });
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 // 회원가입
 router.post(
