@@ -9,7 +9,7 @@ const checkAdmin = async () => {
         const payload = jwt.verify(token, process.env.SECRET_KEY);
 
         const isAdmin = payload.isAdmin;
-        if (isAdmin != false) throw new Error('관리자권한 필요');
+        if (isAdmin != true) throw new Error('관리자권한 필요');
     } catch (e) {}
 };
 
