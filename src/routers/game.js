@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
+const checkLogin = require('../modules/checkLogin');
 
 //위키생성요청
 router.post('/request', async (req, res, next) => {
@@ -229,9 +230,11 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 });
 
 //위키수정하기
-router.put('/:gameidx/wiki', async (req, res, next) => {
+router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
-    const { userIdx } = req.user;
+    console.log('req.decoded');
+    console.log(req.decoded);
+    const { idx } = req.decoded;
     const { content } = req.body;
     try {
         const sql = `
