@@ -19,7 +19,13 @@ deleteCode(pool);
 router.post('/auth', async (req, res, next) => {
     const { id, pw } = req.body;
     try {
-        const loginsql = `SELECT * FROM account_local WHERE id = $1 AND pw = $2`;
+        const loginsql = `
+        SELECT
+            * 
+        FROM
+            account_local
+        WHERE
+            id = $1 AND pw = $2`;
         const { rows } = await pool.query(loginsql, [id, pw]);
 
         if (rows.length === 0) {
@@ -61,13 +67,26 @@ router.post(
         try {
             //비밀번호 해싱 구현하기
 
-            const insertUserSql =
-                'INSERT INTO "user" (nickname, email, is_admin) VALUES ($1, $2, $3) RETURNING idx';
+            const insertUserSql = `
+            INSERT INTO
+                "user"(
+                    nickname,
+                    email,
+                    is_admin
+                    ) 
+            VALUES ($1, $2, $3)
+            RETURNING idx`;
             const userResult = await pool.query(insertUserSql, [nickname, email, isadmin]);
             const userIdx = userResult.rows[0].idx;
 
-            const insertAccountSql =
-                'INSERT INTO account_local (user_idx, id, pw) VALUES ($1, $2, $3)';
+            const insertAccountSql = `
+            INSERT INTO
+                account_local (
+                    user_idx, 
+                    id, 
+                    pw
+                    )
+            VALUES ($1, $2, $3)`;
             await pool.query(insertAccountSql, [userIdx, id, pw]);
             return res.status(200).send('회원가입 성공');
         } catch (e) {
@@ -119,8 +138,8 @@ router.post('/email/check', async (req, res, next) => {
         } else {
             const verificationCode = generateVerificationCode();
             const insertQuery = `
-            INSERT INTO email_verification (email, code )
-            VALUES ($1, $2 )
+            INSERT INTO email_verification (email, code)
+            VALUES ($1, $2)
         `;
             await pool.query(insertQuery, [email, verificationCode]);
             await sendVerificationEmail(email, verificationCode);
@@ -166,6 +185,16 @@ router.get('/id', async (req, res, next) => {
         const foundId = idResults.rows[0].id;
         console.log(foundId);
         return res.status(200).send({ id: foundId });
+    } catch (error) {
+        next(error);
+    }
+});
+
+//비밀번호 찾기(이메일 전송)
+router.post('/pw/email', async (req, res, next) => {
+    const { email } = req.query;
+
+    try {
     } catch (error) {
         next(error);
     }
