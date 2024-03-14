@@ -3,7 +3,7 @@ const moment = require('moment');
 const { pool } = require('../config/postgres');
 const checkLogin = require('../modules/checkLogin');
 
-//위키생성요청
+//게임생성요청
 router.post('/request', async (req, res, next) => {
     const { title } = req.body;
     const { userIdx } = req.user;
@@ -23,7 +23,7 @@ router.post('/request', async (req, res, next) => {
     }
 });
 
-//위키목록불러오기
+//게임목록불러오기
 router.get('/', async (req, res, next) => {
     const { lastTitle } = req.query;
     const result = {
@@ -198,7 +198,7 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
     }
 });
 
-//위키 자세히보기
+//게임(위키) 자세히보기
 router.get('/:gameidx/wiki', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const result = {
@@ -229,11 +229,10 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     }
 });
 
-//위키수정하기
+//게임(위키)수정하기
 router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     console.log('req.decoded');
-    console.log(req.decoded);
     const { idx } = req.decoded;
     const { content } = req.body;
     try {
