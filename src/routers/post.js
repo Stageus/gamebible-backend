@@ -36,7 +36,6 @@ router.post('/', async (req, res, next) => {
 router.get('/', async (req, res, next) => {
     const gameIdx = req.query.gameidx;
     try {
-        console.log('실행');
         const sql = `
         SELECT 
             post.title, 
