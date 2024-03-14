@@ -10,7 +10,10 @@ const checkAdmin = async () => {
 
         const isAdmin = payload.isAdmin;
         if (isAdmin != true) throw new Error('관리자권한 필요');
-    } catch (e) {}
+        next();
+    } catch (e) {
+        next(e);
+    }
 };
 
 module.exports = checkAdmin;
