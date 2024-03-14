@@ -1,5 +1,6 @@
 //Import
 const router = require('express').Router();
+const { pool } = require('../config/postgres');
 
 //Apis
 //사용자 토큰 받아주는 미들웨어 추가하기
@@ -8,9 +9,9 @@ const router = require('express').Router();
 //이 api는 프론트와 상의 후 수정하기로..
 router.post('/', async (req, res, next) => {
     const { title, content } = req.body;
-    const gameIdx = req.query.game_idx;
+    const gameIdx = req.query.gameidx;
     try {
-        const userIdx = req.decoded.userIdx;
+        const userIdx = 3;
         const sql = `
         INSERT INTO 
             post(
@@ -31,27 +32,28 @@ router.post('/', async (req, res, next) => {
     }
 });
 
-console.log('실행');
 //게시판 보기 (게시글 목록보기)
 router.get('/', async (req, res, next) => {
     const gameIdx = req.query.gameidx;
     try {
+        console.log('실행');
         const sql = `
         SELECT 
             post.title, 
             post.created_at, 
-            user.nickname,
+            post.user_idx,
+            "user".nickname,
             COUNT(view.user_idx) AS view_count
         FROM 
             post 
-        JOIN 
-            user ON post.user_idx = user.idx
-        JOIN
+        LEFT JOIN
             view ON post.idx = view.post_idx
+        JOIN
+            "user" ON post.user_idx = "user".idx
         WHERE
-            game_idx = $1
+            post.game_idx = 4
         GROUP BY
-            post.idx
+            post.idx, "user".nickname
         ORDER BY
             post.idx DESC`;
         const values = [gameIdx];
@@ -61,7 +63,7 @@ router.get('/', async (req, res, next) => {
             data: result,
         });
     } catch (err) {
-        return next(err);
+        console.log(err);
     }
 });
 
