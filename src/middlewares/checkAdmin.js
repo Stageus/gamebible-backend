@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const checkAdmin = async () => {
+const checkAdmin = async (req, res, next) => {
     const token = req.headers.authorization;
 
     try {
