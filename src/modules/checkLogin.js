@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 const checkLogin = (req, res, next) => {
     const { token } = req.headers;
 
@@ -32,6 +33,7 @@ const checkLogin = (req, res, next) => {
                 message = '인증에 실패했습니다.';
                 break;
         }
+        console.log(err.stack);
         res.status(statusCode).send(message);
     }
 };

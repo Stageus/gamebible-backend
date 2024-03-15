@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const { body } = require('express-validator');
+require('dotenv').config();
 
 const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
@@ -43,10 +44,9 @@ router.post(
             }
 
             const login = rows[0];
-
             const token = jwt.sign(
                 {
-                    idx: login.idx,
+                    idx: login.user_idx,
                 },
                 process.env.SECRET_KEY,
                 {
@@ -206,6 +206,29 @@ router.post('/pw/email', async (req, res, next) => {
     const { email } = req.query;
 
     try {
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 내 정보 보기
+router.get('/', checkLogin, async (req, res, next) => {
+    try {
+        const { idx } = req.decoded;
+
+        // 사용자 정보를 조회하는 쿼리
+        const getUserInfoQuery = `
+         SELECT * FROM "user"
+         WHERE idx = $1
+      `;
+        // queryDatabase 함수를 사용하여 쿼리 실행
+        const userInfo = await pool.query(getUserInfoQuery, [idx]);
+
+        // 첫 번째 조회 결과 가져오기
+        const user = userInfo.rows[0];
+
+        // 응답 전송
+        res.status(200).send({ data: user });
     } catch (error) {
         next(error);
     }
