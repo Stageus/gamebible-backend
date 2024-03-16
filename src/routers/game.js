@@ -249,8 +249,7 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
                                             WHERE
                                                 game_idx = $1
                                             ORDER BY
-                                                created_at
-                                            DESC
+                                                created_at DESC
                                             LIMIT
                                                 1)`;
         const updateCurrentSQLValues = [gameIdx];
