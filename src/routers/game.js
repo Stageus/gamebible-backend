@@ -3,10 +3,9 @@ const moment = require('moment');
 const { pool } = require('../config/postgres');
 const checkLogin = require('../modules/checkLogin');
 //게임생성요청
-router.post('/request', async (req, res, next) => {
+router.post('/request', checkLogin, async (req, res, next) => {
     const { title } = req.body;
-    const { userIdx } = req.user;
-    // 미들웨어에 authorization 반영
+    const userIdx = req.decoded.idx;
     try {
         const sql = `
         INSERT INTO 
