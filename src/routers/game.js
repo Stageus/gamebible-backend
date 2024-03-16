@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
-
+const checkLogin = require('../modules/checkLogin');
 //게임생성요청
 router.post('/request', async (req, res, next) => {
     const { title } = req.body;
@@ -55,7 +55,6 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-//게임검색하기
 //게임검색하기
 router.get('/search', async (req, res, next) => {
     const { title } = req.query;
@@ -197,7 +196,7 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
     }
 });
 
-//게임(위키) 자세히보기
+//게임 자세히보기
 router.get('/:gameidx/wiki', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const result = {
@@ -228,13 +227,35 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     }
 });
 
-//게임(위키)수정하기
+//게임 수정하기
 router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
-    console.log('req.decoded');
-    const { idx } = req.decoded;
+    const userIdx = req.decoded.idx;
     const { content } = req.body;
+
     try {
+        const updateCurrentSQL = `
+                                UPDATE
+                                    history
+                                SET 
+                                    deleted_at = now()                                    
+                                WHERE
+                                    game_idx = $1
+                                AND
+                                    idx = (SELECT
+                                                idx
+                                            FROM 
+                                                history
+                                            WHERE
+                                                game_idx = $1
+                                            ORDER BY
+                                                created_at
+                                            DESC
+                                            LIMIT
+                                                1)`;
+        const updateCurrentSQLValues = [gameIdx];
+        const updateCurrentSQLResult = pool.query(updateCurrentSQL, updateCurrentSQLValues);
+
         const sql = `
         INSERT INTO 
             history(game_idx, user_idx, content)
