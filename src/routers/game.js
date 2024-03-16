@@ -210,7 +210,7 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
             history
         WHERE 
             game_idx = $1
-        order by 
+        ORDER BY
             created_at DESC
         limit 
             1`;
