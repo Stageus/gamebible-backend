@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
+const { body } = require('express-validator');
+require('dotenv').config();
 
 const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
@@ -16,39 +18,48 @@ const {
 } = require('../middlewares/validator');
 deleteCode(pool);
 //로그인
-router.post('/auth', async (req, res, next) => {
-    const { id, pw } = req.body;
-    try {
-        const loginsql = `
+router.post(
+    '/auth',
+    body('id')
+        .trim()
+        .isAlphanumeric()
+        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
+        .isLength({ min: 4, max: 12 })
+        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { id, pw } = req.body;
+        try {
+            const loginsql = `
         SELECT
             * 
         FROM
             account_local
         WHERE
             id = $1 AND pw = $2`;
-        const { rows } = await pool.query(loginsql, [id, pw]);
+            const { rows } = await pool.query(loginsql, [id, pw]);
 
-        if (rows.length === 0) {
-            return res.status(401).send({ message: '인증 실패' });
-        }
-
-        const login = rows[0];
-
-        const token = jwt.sign(
-            {
-                idx: login.idx,
-            },
-            process.env.SECRET_KEY,
-            {
-                expiresIn: '5h',
+            if (rows.length === 0) {
+                return res.status(401).send({ message: '인증 실패' });
             }
-        );
 
-        res.status(200).send({ message: '로그인 성공', token: token });
-    } catch (e) {
-        next(e);
+            const login = rows[0];
+            const token = jwt.sign(
+                {
+                    idx: login.user_idx,
+                },
+                process.env.SECRET_KEY,
+                {
+                    expiresIn: '5h',
+                }
+            );
+
+            res.status(200).send({ message: '로그인 성공', token: token });
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 // 회원가입
 router.post(
@@ -195,6 +206,29 @@ router.post('/pw/email', async (req, res, next) => {
     const { email } = req.query;
 
     try {
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 내 정보 보기
+router.get('/', checkLogin, async (req, res, next) => {
+    try {
+        const { idx } = req.decoded;
+
+        // 사용자 정보를 조회하는 쿼리
+        const getUserInfoQuery = `
+         SELECT * FROM "user"
+         WHERE idx = $1
+      `;
+        // queryDatabase 함수를 사용하여 쿼리 실행
+        const userInfo = await pool.query(getUserInfoQuery, [idx]);
+
+        // 첫 번째 조회 결과 가져오기
+        const user = userInfo.rows[0];
+
+        // 응답 전송
+        res.status(200).send({ data: user });
     } catch (error) {
         next(error);
     }

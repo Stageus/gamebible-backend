@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
-const checkLogin = require('../modules/checkLogin');
 
 //게임생성요청
 router.post('/request', async (req, res, next) => {
