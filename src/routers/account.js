@@ -227,8 +227,9 @@ router.post('/pw/email', async (req, res, next) => {
 });
 
 //비밀번호 변경
-router.put('/pw', async (req, res, next) => {
+router.put('/pw', checkLogin, async (req, res, next) => {
     const { pw } = req.body;
+    const { idx } = req.decoded;
 
     try {
     } catch (error) {
