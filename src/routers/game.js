@@ -43,11 +43,11 @@ router.get('/', async (req, res, next) => {
         LIMIT 
             10`;
         const values = [lastTitle];
-        const gameSelectSQLResult = pool.query(sql, values);
+        const gameSelectSQLResult = await pool.query(sql, values);
 
         const gameList = gameSelectSQLResult.rows;
         result.data = gameList;
-        console.log('result.data : ', result.data);
+
         res.status(200).send(result);
     } catch (e) {
         next(e);
