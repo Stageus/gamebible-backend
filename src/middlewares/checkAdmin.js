@@ -2,11 +2,8 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const checkAdmin = async (req, res, next) => {
-    console.log(req.headers);
-    console.log(req.headers.authorization);
-    const { authorization } = req.headers;
-
-    console.log(authorization);
+    let { authorization } = req.headers;
+    authorization = authorization.split(' ')[1];
 
     try {
         if (!authorization) {
