@@ -57,8 +57,8 @@ router.post(
             const admin = adminRows[0];
             const token = jwt.sign(
                 {
-                    idx: login.user_idx,
-                    isadmin: admin.is_admin,
+                    userIdx: login.user_idx,
+                    isAdmin: admin.is_admin,
                 },
                 process.env.SECRET_KEY,
                 {
