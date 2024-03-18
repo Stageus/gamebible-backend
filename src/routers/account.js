@@ -66,7 +66,7 @@ router.post(
                 }
             );
 
-            res.status(200).send({ message: '로그인 성공', headers: { Authorization: token } });
+            res.status(200).send({ message: '로그인 성공', token: token });
         } catch (e) {
             next(e);
         }
@@ -219,7 +219,8 @@ router.post('/pw/email', async (req, res, next) => {
     const { email } = req.body;
 
     try {
-        await changePwEmail(email);
+        const emailToken = await changePwEmail(email);
+        return res.status(200).send({ token: emailToken });
     } catch (error) {
         next(error);
     }

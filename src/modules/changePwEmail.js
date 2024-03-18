@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const { pool } = require('../config/postgres.js');
+const jwt = require('jsonwebtoken');
 
 async function changePwEmail(email) {
     let transporter = nodemailer.createTransport({
@@ -9,7 +11,26 @@ async function changePwEmail(email) {
         },
     });
 
-    const resetLink = `https://yourwebsite.com/password-reset`;
+    const userQuery = `SELECT idx FROM "user" WHERE email = $1`;
+    const userResult = await pool.query(userQuery, [email]);
+
+    if (userResult.rows.length === 0) {
+        throw new Error('사용자를 찾을 수 없습니다.');
+    }
+
+    const userIdx = userResult.rows[0].idx;
+
+    const token = jwt.sign(
+        {
+            idx: userIdx,
+        },
+        process.env.SECRET_KEY,
+        {
+            expiresIn: '5h',
+        }
+    );
+
+    const resetLink = `https://yourwebsite.com/${token}`;
 
     let mailOptions = {
         from: process.env.EMAIL_USER,
@@ -18,12 +39,13 @@ async function changePwEmail(email) {
         html: `<p>비밀번호를 변경하려면 아래 링크를 클릭하세요:</p><a href="${resetLink}">비밀번호 변경하기</a>`,
     };
 
-    await transporter.sendMail(mailOptions, (error, info) => {
+    transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
             console.error('이메일 전송 실패: ', error);
         } else {
             console.log('이메일 전송 성공: ' + info.response);
         }
     });
+    return token;
 }
 module.exports = changePwEmail;
