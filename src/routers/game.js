@@ -25,7 +25,7 @@ router.post('/request', checkLogin, async (req, res, next) => {
 
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
-    const { lastTitle } = req.query;
+    const lastIdx = req.query.lastidx;
     const result = {
         data: {},
     };
@@ -38,13 +38,13 @@ router.get('/', async (req, res, next) => {
             game
         WHERE 
             deleted_at IS NULL 
-        AND 
-            title > $1
         ORDER BY 
             title ASC
         LIMIT 
-            10`;
-        const values = [lastTitle];
+            10
+        OFFSET
+            $1`;
+        const values = [lastIdx];
         const gameSelectSQLResult = await pool.query(sql, values);
 
         const gameList = gameSelectSQLResult.rows;
@@ -92,7 +92,7 @@ router.get(
 //인기게임목록불러오기(게시글순)
 // 10개 단위로 불러오기
 router.get('/popular', async (req, res, next) => {
-    const { lastIdx } = req.query;
+    const lastIdx = req.query.lastidx;
     const result = {
         data: {},
     };
