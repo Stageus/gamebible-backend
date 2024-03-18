@@ -251,6 +251,7 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const { content } = req.body;
 
     try {
+        //가장 최신히스토리 삭제
         const updateCurrentSQL = `
                                 UPDATE
                                     history
@@ -270,8 +271,8 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
                                             LIMIT
                                                 1)`;
         const updateCurrentSQLValues = [gameIdx];
-        const updateCurrentSQLResult = pool.query(updateCurrentSQL, updateCurrentSQLValues);
-
+        await pool.query(updateCurrentSQL, updateCurrentSQLValues);
+        // 새로운 히스토리 등록
         const sql = `
         INSERT INTO 
             history(game_idx, user_idx, content)
