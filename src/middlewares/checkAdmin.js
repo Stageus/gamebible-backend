@@ -2,14 +2,22 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const checkAdmin = async (req, res, next) => {
-    const token = req.headers.authorization;
+    const { token } = req.headers;
 
     try {
-        if (!token) throw new Error('no token');
-        const payload = jwt.verify(token, process.env.SECRET_KEY);
+        if (!token) {
+            const error = new Error('no token');
+            error.status = 401;
+            throw error;
+        }
+        const isAdmin = jwt.verify(token, process.env.SECRET_KEY).isAdmin;
+        req.decoded.isAdmin = isAdmin;
 
-        const isAdmin = payload.isAdmin;
-        if (isAdmin != true) throw new Error('관리자권한 필요');
+        if (isAdmin != true) {
+            const error = new Error('no admin');
+            error.status = 401;
+            throw error;
+        }
         next();
     } catch (e) {
         next(e);
