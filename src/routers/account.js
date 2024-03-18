@@ -16,7 +16,7 @@ const {
     validateNickname,
     handleValidationErrors,
 } = require('../middlewares/validator');
-deleteCode(pool);
+
 //로그인
 router.post(
     '/auth',
@@ -31,22 +31,33 @@ router.post(
         const { id, pw } = req.body;
         try {
             const loginsql = `
-        SELECT
-            * 
-        FROM
-            account_local
-        WHERE
-            id = $1 AND pw = $2`;
-            const { rows } = await pool.query(loginsql, [id, pw]);
+            SELECT
+                * 
+            FROM
+                account_local
+            WHERE
+                id = $1 AND pw = $2`;
+            const { rows: loginRows } = await pool.query(loginsql, [id, pw]); // 첫 번째 쿼리 결과를 loginRows로 변경
 
-            if (rows.length === 0) {
+            if (loginRows.length === 0) {
                 return res.status(401).send({ message: '인증 실패' });
             }
 
-            const login = rows[0];
+            const login = loginRows[0];
+
+            const adminsql = `
+            SELECT
+                *
+            FROM
+                "user"
+            WHERE
+                idx=$1`;
+            const { rows: adminRows } = await pool.query(adminsql, [login.user_idx]); // 두 번째 쿼리 결과를 adminRows로 변경
+            const admin = adminRows[0];
             const token = jwt.sign(
                 {
                     idx: login.user_idx,
+                    isadmin: admin.is_admin,
                 },
                 process.env.SECRET_KEY,
                 {
@@ -54,7 +65,7 @@ router.post(
                 }
             );
 
-            res.status(200).send({ message: '로그인 성공', token: token });
+            res.status(200).send({ message: '로그인 성공', headers: { Authorization: token } });
         } catch (e) {
             next(e);
         }
@@ -154,6 +165,7 @@ router.post('/email/check', async (req, res, next) => {
         `;
             await pool.query(insertQuery, [email, verificationCode]);
             await sendVerificationEmail(email, verificationCode);
+            deleteCode(pool);
             return res.status(200).send('인증 코드가 발송되었습니다.');
         }
     } catch (e) {
