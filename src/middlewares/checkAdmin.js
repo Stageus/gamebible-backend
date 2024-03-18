@@ -15,7 +15,7 @@ const checkAdmin = async (req, res, next) => {
             throw error;
         }
         req.decoded = jwt.verify(authorization, process.env.SECRET_KEY);
-        const isAdmin = req.decoded.isadmin;
+        const isAdmin = req.decoded.isAdmin;
 
         if (isAdmin != true) {
             const error = new Error('no admin');
