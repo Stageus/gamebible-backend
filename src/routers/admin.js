@@ -43,4 +43,24 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     }
 });
 
+router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
+    const result = {
+        data: {},
+    };
+    try {
+        const selectRequestSQL = `
+                            SELECT
+                                *
+                            FROM
+                                request
+                            WHERE 
+                                deleted_at IS NULL`;
+        const selectRequestSQLResult = await pool.query(selectRequestSQL);
+        const requestList = selectRequestSQLResult.rows;
+
+        result.data = requestList;
+        res.status(200).send(result);
+    } catch (e) {}
+});
+
 module.exports = router;
