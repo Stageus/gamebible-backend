@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { pool } = require('../config/posgres');
+const { pool } = require('../config/postgres');
 const checkLogin = require('../modules/checkLogin');
 
 // 위키(게임) 생성
