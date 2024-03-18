@@ -3,21 +3,39 @@ const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 
-// 위키(게임) 생성
-// admin체크 미들웨어 추가
+// 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
-    const { title } = req.body;
+    const { requestIdx } = req.body;
     const { userIdx, isAdmin } = req.decoded;
-    console.log(userIdx);
-    console.log(isAdmin);
     try {
-        const sql = `
+        const updateRequestSQL = `
+                            UPDATE
+                                request
+                            SET 
+                                deleted_at = now(), is_confirmed = true
+                            WHERE idx = $1`;
+        const updateRequestValues = [requestIdx];
+        await pool.query(updateRequestSQL, updateRequestValues);
+
+        const selectTitleSQL = `
+                            SELECT
+                                title
+                            FROM
+                                request
+                            WHERE 
+                                idx = $1`;
+        const selectTitleValues = [requestIdx];
+        const selectTitleSQLResult = await pool.query(selectTitleSQL, selectTitleValues);
+        const selectResult = selectTitleSQLResult.rows[0];
+        const title = selectResult.title;
+
+        const insertGameSQL = `
         INSERT INTO 
             game(title, user_idx)
         VALUES
             ( $1, $2 )`;
-        const values = [title, userIdx];
-        await pool.query(sql, values);
+        const insertGamevalues = [title, userIdx];
+        await pool.query(insertGameSQL, insertGamevalues);
 
         res.status(201).send();
     } catch (e) {
