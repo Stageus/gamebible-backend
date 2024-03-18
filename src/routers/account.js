@@ -4,7 +4,7 @@ const { body } = require('express-validator');
 require('dotenv').config();
 
 const { pool } = require('../config/postgres.js');
-const checkLogin = require('../modules/checkLogin');
+const checkLogin = require('../middlewares/checkLogin.js');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
 const changePwEmail = require('../modules/changePwEmail');
@@ -21,12 +21,8 @@ const {
 //로그인
 router.post(
     '/auth',
-    body('id')
-        .trim()
-        .isAlphanumeric()
-        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
-        .isLength({ min: 4, max: 12 })
-        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+    validateId,
+    validatePassword,
     handleValidationErrors,
     async (req, res, next) => {
         const { id, pw } = req.body;
@@ -119,7 +115,7 @@ router.post(
 );
 
 //아이디 중복 확인
-router.post('/id/check', async (req, res, next) => {
+router.post('/id/check', validateId, async (req, res, next) => {
     try {
         const { id } = req.body;
 
@@ -134,7 +130,7 @@ router.post('/id/check', async (req, res, next) => {
 });
 
 //닉네임 중복 확인
-router.post('/nickname/check', async (req, res, next) => {
+router.post('/nickname/check', validateNickname, async (req, res, next) => {
     try {
         const { nickname } = req.body;
 
@@ -150,7 +146,7 @@ router.post('/nickname/check', async (req, res, next) => {
 });
 
 //이메일 중복 확인/인증
-router.post('/email/check', async (req, res, next) => {
+router.post('/email/check', validateEmail, async (req, res, next) => {
     try {
         const { email } = req.body;
 
@@ -215,7 +211,7 @@ router.get('/id', async (req, res, next) => {
 });
 
 //비밀번호 찾기(이메일 전송)
-router.post('/pw/email', async (req, res, next) => {
+router.post('/pw/email', validateEmail, async (req, res, next) => {
     const { email } = req.body;
 
     try {
@@ -227,7 +223,7 @@ router.post('/pw/email', async (req, res, next) => {
 });
 
 //비밀번호 변경
-router.put('/pw', checkLogin, async (req, res, next) => {
+router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
     const { pw } = req.body;
     const { idx } = req.decoded;
 
