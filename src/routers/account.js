@@ -9,6 +9,7 @@ const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
 const changePwEmail = require('../modules/changePwEmail');
 const deleteCode = require('../modules/deleteCode');
+const { uploadS3 } = require('../middlewares/upload');
 const {
     validateId,
     validateEmail,
@@ -336,11 +337,20 @@ router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, ne
     }
 });
 
-router.put('/image', checkLogin, async (req, res, next) => {
+//프로필 이미지
+router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next) => {
     const { userIdx } = req.decoded;
-    const { image_path } = req.body;
     try {
-        return res.status(200).send('프로필 이미지 수정 성공');
+        const uploadedFile = req.file;
+
+        if (!uploadedFile) {
+            return res.status(400).send({ message: '업로드 된 파일이 없습니다' });
+        }
+        return res.status(200).send({
+            data: {
+                file: uploadedFile.location,
+            },
+        });
     } catch (error) {
         next(error);
     }
