@@ -216,10 +216,20 @@ router.get('/id', async (req, res, next) => {
 
 //비밀번호 찾기(이메일 전송)
 router.post('/pw/email', async (req, res, next) => {
-    const { email } = req.query;
+    const { email } = req.body;
 
     try {
         await changePwEmail(email);
+    } catch (error) {
+        next(error);
+    }
+});
+
+//비밀번호 변경
+router.put('/pw', async (req, res, next) => {
+    const { pw } = req.body;
+
+    try {
     } catch (error) {
         next(error);
     }
