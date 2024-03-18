@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
+const { query } = require('express-validator');
+const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../modules/checkLogin');
 //게임생성요청
 router.post('/request', checkLogin, async (req, res, next) => {
@@ -55,32 +57,37 @@ router.get('/', async (req, res, next) => {
 });
 
 //게임검색하기
-router.get('/search', async (req, res, next) => {
-    const { title } = req.query;
-    const result = {
-        data: {},
-    };
-    try {
-        const sql = `
-        SELECT 
-            *
-        FROM 
-            stageus.game
-        WHERE 
-            title 
-        LIKE 
-            '%' ||$1|| '%'`;
+router.get(
+    '/search',
+    query('title').trim().isLength({ min: 2 }).withMessage('2글자 이상입력해주세요'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { title } = req.query;
+        const result = {
+            data: {},
+        };
+        try {
+            const sql = `
+            SELECT 
+                *
+            FROM 
+                stageus.game
+            WHERE 
+                title 
+            LIKE 
+                '%' ||$1|| '%'`;
 
-        const values = [title];
-        const searchSQLResult = await pool.query(sql, values);
-        const selectedGameList = searchSQLResult.rows;
-        result.data = selectedGameList;
+            const values = [title];
+            const searchSQLResult = await pool.query(sql, values);
+            const selectedGameList = searchSQLResult.rows;
+            result.data = selectedGameList;
 
-        res.status(200).send(result);
-    } catch (e) {
-        next(e);
+            res.status(200).send(result);
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 //인기게임목록불러오기(게시글순)
 // 10개 단위로 불러오기
