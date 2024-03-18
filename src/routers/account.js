@@ -4,7 +4,7 @@ const { body } = require('express-validator');
 require('dotenv').config();
 
 const { pool } = require('../config/postgres.js');
-const checkLogin = require('../modules/checkLogin');
+const checkLogin = require('../middlewares/checkLogin.js');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
 const changePwEmail = require('../modules/changePwEmail');
@@ -21,24 +21,21 @@ const {
 //로그인
 router.post(
     '/auth',
-    body('id')
-        .trim()
-        .isAlphanumeric()
-        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
-        .isLength({ min: 4, max: 12 })
-        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+
     handleValidationErrors,
     async (req, res, next) => {
         const { id, pw } = req.body;
         try {
             const loginsql = `
             SELECT
-                * 
+                al.*, u.is_admin, u.deleted_at
             FROM
-                account_local
+                account_local al
+            JOIN
+                "user" u ON al.user_idx = u.idx
             WHERE
-                id = $1 AND pw = $2`;
-            const { rows: loginRows } = await pool.query(loginsql, [id, pw]); // 첫 번째 쿼리 결과를 loginRows로 변경
+                al.id = $1 AND al.pw = $2 AND u.deleted_at IS NULL`; // 삭제되지 않은 사용자만 조회
+            const { rows: loginRows } = await pool.query(loginsql, [id, pw]);
 
             if (loginRows.length === 0) {
                 return res.status(401).send({ message: '인증 실패' });
@@ -46,19 +43,10 @@ router.post(
 
             const login = loginRows[0];
 
-            const adminsql = `
-            SELECT
-                *
-            FROM
-                "user"
-            WHERE
-                idx=$1`;
-            const { rows: adminRows } = await pool.query(adminsql, [login.user_idx]); // 두 번째 쿼리 결과를 adminRows로 변경
-            const admin = adminRows[0];
             const token = jwt.sign(
                 {
                     userIdx: login.user_idx,
-                    isAdmin: admin.is_admin,
+                    isAdmin: login.is_admin,
                 },
                 process.env.SECRET_KEY,
                 {
@@ -119,7 +107,7 @@ router.post(
 );
 
 //아이디 중복 확인
-router.post('/id/check', async (req, res, next) => {
+router.post('/id/check', validateId, async (req, res, next) => {
     try {
         const { id } = req.body;
 
@@ -134,7 +122,7 @@ router.post('/id/check', async (req, res, next) => {
 });
 
 //닉네임 중복 확인
-router.post('/nickname/check', async (req, res, next) => {
+router.post('/nickname/check', validateNickname, async (req, res, next) => {
     try {
         const { nickname } = req.body;
 
@@ -150,7 +138,7 @@ router.post('/nickname/check', async (req, res, next) => {
 });
 
 //이메일 중복 확인/인증
-router.post('/email/check', async (req, res, next) => {
+router.post('/email/check', validateEmail, async (req, res, next) => {
     try {
         const { email } = req.body;
 
@@ -215,7 +203,7 @@ router.get('/id', async (req, res, next) => {
 });
 
 //비밀번호 찾기(이메일 전송)
-router.post('/pw/email', async (req, res, next) => {
+router.post('/pw/email', validateEmail, async (req, res, next) => {
     const { email } = req.body;
 
     try {
@@ -227,7 +215,7 @@ router.post('/pw/email', async (req, res, next) => {
 });
 
 //비밀번호 변경
-router.put('/pw', checkLogin, async (req, res, next) => {
+router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
     const { pw } = req.body;
     const { idx } = req.decoded;
 
@@ -289,6 +277,70 @@ router.get('/', checkLogin, async (req, res, next) => {
         const user = userInfo.rows[0];
         // 응답 전송
         res.status(200).send({ data: user });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 내 정보 수정
+router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, next) => {
+    const { userIdx } = req.decoded;
+    const { nickname, email } = req.body;
+    try {
+        const deleteInfoSql = `
+        UPDATE
+            "user" 
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        const result = await pool.query(deleteInfoSql, [userIdx]);
+        console.log(userIdx);
+
+        if (result.rowCount == 0) {
+            return res.status(400).send('softdelete오류');
+        }
+
+        const newInfoSql = `
+        INSERT INTO 
+            "user" (
+                is_admin,
+                nickname, 
+                email
+                )
+        SELECT 
+            is_admin, $2, $3
+        FROM 
+            "user"
+        WHERE
+            idx = $1
+            RETURNING *`;
+
+        const userInfo = await pool.query(newInfoSql, [userIdx, nickname, email]);
+
+        const user = userInfo.rows[0];
+
+        const changeInfoSql = `
+        INSERT INTO
+            account_local(id, pw, user_idx)
+        SELECT
+            id,pw,$2
+        FROM
+            account_local
+        WHERE
+            user_idx=$1`;
+        await pool.query(changeInfoSql, [userIdx, user.idx]);
+        return res.status(200).send('내 정보 수정 성공');
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.put('/image', checkLogin, async (req, res, next) => {
+    const { userIdx } = req.decoded;
+    const { image_path } = req.body;
+    try {
+        return res.status(200).send('프로필 이미지 수정 성공');
     } catch (error) {
         next(error);
     }
