@@ -336,4 +336,14 @@ router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, ne
     }
 });
 
+router.put('/image', checkLogin, async (req, res, next) => {
+    const { userIdx } = req.decoded;
+    const { image_path } = req.body;
+    try {
+        return res.status(200).send('프로필 이미지 수정 성공');
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
