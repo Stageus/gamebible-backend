@@ -1,12 +1,13 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
-
-//위키생성요청
-router.post('/request', async (req, res, next) => {
+const { query } = require('express-validator');
+const { handleValidationErrors } = require('../middlewares/validator');
+const checkLogin = require('../modules/checkLogin');
+//게임생성요청
+router.post('/request', checkLogin, async (req, res, next) => {
     const { title } = req.body;
-    const { userIdx } = req.user;
-    // 미들웨어에 authorization 반영
+    const userIdx = req.decoded.idx;
     try {
         const sql = `
         INSERT INTO 
@@ -22,9 +23,9 @@ router.post('/request', async (req, res, next) => {
     }
 });
 
-//위키목록불러오기
+//게임목록불러오기
 router.get('/', async (req, res, next) => {
-    const { lastTitle } = req.query;
+    const lastIdx = req.query.lastidx;
     const result = {
         data: {},
     };
@@ -37,18 +38,18 @@ router.get('/', async (req, res, next) => {
             game
         WHERE 
             deleted_at IS NULL 
-        AND 
-            title > $1
         ORDER BY 
             title ASC
         LIMIT 
-            10`;
-        const values = [lastTitle];
-        const gameSelectSQLResult = pool.query(sql, values);
+            10
+        OFFSET
+            $1`;
+        const values = [lastIdx];
+        const gameSelectSQLResult = await pool.query(sql, values);
 
         const gameList = gameSelectSQLResult.rows;
         result.data = gameList;
-        console.log('result.data : ', result.data);
+
         res.status(200).send(result);
     } catch (e) {
         next(e);
@@ -56,38 +57,42 @@ router.get('/', async (req, res, next) => {
 });
 
 //게임검색하기
-//게임검색하기
-router.get('/search', async (req, res, next) => {
-    const { title } = req.query;
-    const result = {
-        data: {},
-    };
-    try {
-        const sql = `
-        SELECT 
-            *
-        FROM 
-            stageus.game
-        WHERE 
-            title 
-        LIKE 
-            '%' ||$1|| '%'`;
+router.get(
+    '/search',
+    query('title').trim().isLength({ min: 2 }).withMessage('2글자 이상입력해주세요'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { title } = req.query;
+        const result = {
+            data: {},
+        };
+        try {
+            const sql = `
+            SELECT 
+                *
+            FROM 
+                stageus.game
+            WHERE 
+                title 
+            LIKE 
+                '%' ||$1|| '%'`;
 
-        const values = [title];
-        const searchSQLResult = await pool.query(sql, values);
-        const selectedGameList = searchSQLResult.rows;
-        result.data = selectedGameList;
+            const values = [title];
+            const searchSQLResult = await pool.query(sql, values);
+            const selectedGameList = searchSQLResult.rows;
+            result.data = selectedGameList;
 
-        res.status(200).send(result);
-    } catch (e) {
-        next(e);
+            res.status(200).send(result);
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 //인기게임목록불러오기(게시글순)
 // 10개 단위로 불러오기
 router.get('/popular', async (req, res, next) => {
-    const { lastIdx } = req.query;
+    const lastIdx = req.query.lastidx;
     const result = {
         data: {},
     };
@@ -129,10 +134,9 @@ router.get('/:gameidx/history', async (req, res, next) => {
         data: {},
     };
     try {
-        // createdAt, user nickname
         const sql = `
         SELECT 
-            h.created_at, u.nickname 
+            h.idx, h.created_at, u.nickname
         FROM 
             history h 
         JOIN 
@@ -140,26 +144,38 @@ router.get('/:gameidx/history', async (req, res, next) => {
         ON 
             h.user_idx = u.idx
         WHERE 
-            game_idx = $1`;
+            game_idx = $1
+        ORDER BY
+            h.created_at`;
         const values = [gameIdx];
         const selectHistorySQLResult = await pool.query(sql, values);
         const beforeHistoryList = selectHistorySQLResult.rows;
 
+        let idx;
         let createdAt;
         let nickname;
         let timeStamp;
         let historyTitle;
+        let history;
         let historyList = [];
 
         beforeHistoryList.forEach((element) => {
+            history = [];
+            idx = element.idx;
             timeStamp = element.created_at;
             nickname = element.nickname;
             createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
 
             historyTitle = createdAt + ' ' + nickname;
-            historyList.push(historyTitle);
+
+            history.push(idx);
+            history.push(historyTitle);
+
+            historyList.push(history);
         });
         result.data = historyList;
+
+        console.log(result.data);
 
         res.status(200).send(result);
     } catch (e) {
@@ -197,7 +213,7 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
     }
 });
 
-//위키 자세히보기
+//게임 자세히보기
 router.get('/:gameidx/wiki', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const result = {
@@ -211,7 +227,7 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
             history
         WHERE 
             game_idx = $1
-        order by 
+        ORDER BY
             created_at DESC
         limit 
             1`;
@@ -228,12 +244,34 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     }
 });
 
-//위키수정하기
-router.put('/:gameidx/wiki', async (req, res, next) => {
+//게임 수정하기
+router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
-    const { userIdx } = req.user;
+    const userIdx = req.decoded.idx;
     const { content } = req.body;
+
     try {
+        const updateCurrentSQL = `
+                                UPDATE
+                                    history
+                                SET 
+                                    deleted_at = now()                                    
+                                WHERE
+                                    game_idx = $1
+                                AND
+                                    idx = (SELECT
+                                                idx
+                                            FROM 
+                                                history
+                                            WHERE
+                                                game_idx = $1
+                                            ORDER BY
+                                                created_at DESC
+                                            LIMIT
+                                                1)`;
+        const updateCurrentSQLValues = [gameIdx];
+        const updateCurrentSQLResult = pool.query(updateCurrentSQL, updateCurrentSQLValues);
+
         const sql = `
         INSERT INTO 
             history(game_idx, user_idx, content)
