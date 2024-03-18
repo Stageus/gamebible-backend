@@ -7,6 +7,7 @@ const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
+const changePwEmail = require('../modules/changePwEmail');
 const deleteCode = require('../modules/deleteCode');
 const {
     validateId,
@@ -56,8 +57,8 @@ router.post(
             const admin = adminRows[0];
             const token = jwt.sign(
                 {
-                    idx: login.user_idx,
-                    isadmin: admin.is_admin,
+                    userIdx: login.user_idx,
+                    isAdmin: admin.is_admin,
                 },
                 process.env.SECRET_KEY,
                 {
@@ -65,7 +66,7 @@ router.post(
                 }
             );
 
-            res.status(200).send({ message: '로그인 성공', headers: { Authorization: token } });
+            res.status(200).send({ message: '로그인 성공', token: token });
         } catch (e) {
             next(e);
         }
@@ -215,7 +216,20 @@ router.get('/id', async (req, res, next) => {
 
 //비밀번호 찾기(이메일 전송)
 router.post('/pw/email', async (req, res, next) => {
-    const { email } = req.query;
+    const { email } = req.body;
+
+    try {
+        const emailToken = await changePwEmail(email);
+        return res.status(200).send({ token: emailToken });
+    } catch (error) {
+        next(error);
+    }
+});
+
+//비밀번호 변경
+router.put('/pw', checkLogin, async (req, res, next) => {
+    const { pw } = req.body;
+    const { idx } = req.decoded;
 
     try {
     } catch (error) {
