@@ -7,6 +7,7 @@ const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
+const changePwEmail = require('../modules/changePwEmail');
 const deleteCode = require('../modules/deleteCode');
 const {
     validateId,
@@ -218,6 +219,7 @@ router.post('/pw/email', async (req, res, next) => {
     const { email } = req.query;
 
     try {
+        await changePwEmail(email);
     } catch (error) {
         next(error);
     }
