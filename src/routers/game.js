@@ -151,21 +151,31 @@ router.get('/:gameidx/history', async (req, res, next) => {
         const selectHistorySQLResult = await pool.query(sql, values);
         const beforeHistoryList = selectHistorySQLResult.rows;
 
+        let idx;
         let createdAt;
         let nickname;
         let timeStamp;
         let historyTitle;
+        let history;
         let historyList = [];
 
         beforeHistoryList.forEach((element) => {
+            history = [];
+            idx = element.idx;
             timeStamp = element.created_at;
             nickname = element.nickname;
             createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
 
             historyTitle = createdAt + ' ' + nickname;
-            historyList.push(historyTitle);
+
+            history.push(idx);
+            history.push(historyTitle);
+
+            historyList.push(history);
         });
         result.data = historyList;
+
+        console.log(result.data);
 
         res.status(200).send(result);
     } catch (e) {
