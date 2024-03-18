@@ -232,6 +232,40 @@ router.put('/pw', checkLogin, async (req, res, next) => {
     const { idx } = req.decoded;
 
     try {
+        const deletePwSql = `
+        UPDATE
+            "user" 
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        await pool.query(deletePwSql, [idx]);
+
+        const newPwSql = `
+        INSERT INTO 
+            "user" (is_admin, nickname, email)
+        SELECT 
+            is_admin, nickname, email
+        FROM 
+            "user"
+        WHERE
+            idx = $1
+            RETURNING *`;
+        const userInfo = await pool.query(newPwSql, [idx]);
+
+        const user = userInfo.rows[0];
+
+        const changePwSql = `
+        INSERT INTO
+            account_local(id, pw, user_idx)
+        SELECT
+            id,$2,$3
+        FROM
+            account_local
+        WHERE
+            user_idx=$1`;
+        await pool.query(changePwSql, [idx, pw, user.idx]);
+        return res.status(200).send('비밀번호 변경 성공');
     } catch (error) {
         next(error);
     }
@@ -240,19 +274,19 @@ router.put('/pw', checkLogin, async (req, res, next) => {
 // 내 정보 보기
 router.get('/', checkLogin, async (req, res, next) => {
     try {
-        const { idx } = req.decoded;
-
+        const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
         const getUserInfoQuery = `
-         SELECT * FROM "user"
+         SELECT 
+            *
+        FROM
+            "user"
          WHERE idx = $1
       `;
         // queryDatabase 함수를 사용하여 쿼리 실행
-        const userInfo = await pool.query(getUserInfoQuery, [idx]);
-
+        const userInfo = await pool.query(getUserInfoQuery, [userIdx]);
         // 첫 번째 조회 결과 가져오기
         const user = userInfo.rows[0];
-
         // 응답 전송
         res.status(200).send({ data: user });
     } catch (error) {
