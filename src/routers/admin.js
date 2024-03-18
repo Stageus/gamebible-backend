@@ -1,12 +1,15 @@
 const router = require('express').Router();
 const { pool } = require('../config/postgres');
 const checkLogin = require('../modules/checkLogin');
+const checkAdmin = require('../middlewares/checkAdmin');
 
 // 위키(게임) 생성
 // admin체크 미들웨어 추가
-router.post('/game', checkLogin, async (req, res, next) => {
+router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { title } = req.body;
-    const userIdx = req.body.useridx;
+    const { userIdx, isAdmin } = req.decoded;
+    console.log(userIdx);
+    console.log(isAdmin);
     try {
         const sql = `
         INSERT INTO 
