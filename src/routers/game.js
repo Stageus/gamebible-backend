@@ -134,10 +134,9 @@ router.get('/:gameidx/history', async (req, res, next) => {
         data: {},
     };
     try {
-        // createdAt, user nickname
         const sql = `
         SELECT 
-            h.created_at, u.nickname 
+            h.idx, h.created_at, u.nickname
         FROM 
             history h 
         JOIN 
@@ -145,7 +144,9 @@ router.get('/:gameidx/history', async (req, res, next) => {
         ON 
             h.user_idx = u.idx
         WHERE 
-            game_idx = $1`;
+            game_idx = $1
+        ORDER BY
+            h.created_at`;
         const values = [gameIdx];
         const selectHistorySQLResult = await pool.query(sql, values);
         const beforeHistoryList = selectHistorySQLResult.rows;
