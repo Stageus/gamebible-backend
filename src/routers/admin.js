@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { pool } = require('../config/postgres');
-const checkLogin = require('../modules/checkLogin');
+const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 
 // 위키(게임) 생성

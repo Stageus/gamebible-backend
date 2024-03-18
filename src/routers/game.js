@@ -3,7 +3,7 @@ const moment = require('moment');
 const { pool } = require('../config/postgres');
 const { query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
-const checkLogin = require('../modules/checkLogin');
+const checkLogin = require('../middlewares/checkLogin');
 //게임생성요청
 router.post('/request', checkLogin, async (req, res, next) => {
     const { title } = req.body;
