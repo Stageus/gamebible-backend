@@ -7,6 +7,7 @@ const { pool } = require('../config/postgres.js');
 const checkLogin = require('../modules/checkLogin');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
+const changePwEmail = require('../modules/changePwEmail');
 const deleteCode = require('../modules/deleteCode');
 const {
     validateId,
@@ -16,7 +17,7 @@ const {
     validateNickname,
     handleValidationErrors,
 } = require('../middlewares/validator');
-deleteCode(pool);
+
 //로그인
 router.post(
     '/auth',
@@ -31,22 +32,33 @@ router.post(
         const { id, pw } = req.body;
         try {
             const loginsql = `
-        SELECT
-            * 
-        FROM
-            account_local
-        WHERE
-            id = $1 AND pw = $2`;
-            const { rows } = await pool.query(loginsql, [id, pw]);
+            SELECT
+                * 
+            FROM
+                account_local
+            WHERE
+                id = $1 AND pw = $2`;
+            const { rows: loginRows } = await pool.query(loginsql, [id, pw]); // 첫 번째 쿼리 결과를 loginRows로 변경
 
-            if (rows.length === 0) {
+            if (loginRows.length === 0) {
                 return res.status(401).send({ message: '인증 실패' });
             }
 
-            const login = rows[0];
+            const login = loginRows[0];
+
+            const adminsql = `
+            SELECT
+                *
+            FROM
+                "user"
+            WHERE
+                idx=$1`;
+            const { rows: adminRows } = await pool.query(adminsql, [login.user_idx]); // 두 번째 쿼리 결과를 adminRows로 변경
+            const admin = adminRows[0];
             const token = jwt.sign(
                 {
-                    idx: login.user_idx,
+                    userIdx: login.user_idx,
+                    isAdmin: admin.is_admin,
                 },
                 process.env.SECRET_KEY,
                 {
@@ -154,6 +166,7 @@ router.post('/email/check', async (req, res, next) => {
         `;
             await pool.query(insertQuery, [email, verificationCode]);
             await sendVerificationEmail(email, verificationCode);
+            deleteCode(pool);
             return res.status(200).send('인증 코드가 발송되었습니다.');
         }
     } catch (e) {
@@ -203,7 +216,20 @@ router.get('/id', async (req, res, next) => {
 
 //비밀번호 찾기(이메일 전송)
 router.post('/pw/email', async (req, res, next) => {
-    const { email } = req.query;
+    const { email } = req.body;
+
+    try {
+        const emailToken = await changePwEmail(email);
+        return res.status(200).send({ token: emailToken });
+    } catch (error) {
+        next(error);
+    }
+});
+
+//비밀번호 변경
+router.put('/pw', checkLogin, async (req, res, next) => {
+    const { pw } = req.body;
+    const { idx } = req.decoded;
 
     try {
     } catch (error) {
