@@ -42,7 +42,7 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         next(e);
     }
 });
-
+//승인요청온 게임목록보기
 router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
     const result = {
         data: {},
@@ -60,7 +60,28 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
 
         result.data = requestList;
         res.status(200).send(result);
-    } catch (e) {}
+    } catch (e) {
+        next(e);
+    }
+});
+
+//승인요청 거부
+router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, res, next) => {
+    const requestIdx = req.params.requestidx;
+    try {
+        const deleteRequestSQL = `
+                            UPDATE
+                                request
+                            SET 
+                                deleted_at = now(), is_confirmed = false
+                            WHERE 
+                                idx = $1`;
+        const deleteRequestValues = [requestIdx];
+        await pool.query(deleteRequestSQL, deleteRequestValues);
+        res.status(200).send();
+    } catch (e) {
+        next(e);
+    }
 });
 
 module.exports = router;
