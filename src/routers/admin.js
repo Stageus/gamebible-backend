@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
+const { uploadS3 } = require('../middlewares/upload');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
@@ -83,5 +84,43 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
         next(e);
     }
 });
+
+//배너이미지 등록
+router.post(
+    '/game/:gameidx/banner',
+    checkLogin,
+    checkAdmin,
+    uploadS3.array('images', 1),
+    async (req, res, next) => {
+        const gameIdx = req.params.gameidx;
+
+        try {
+            const location = req.files[0].location;
+            const deleteBannerSQL = `
+                            UPDATE 
+                                game_img_banner
+                            SET 
+                                deleted_at = now()
+                            WHERE 
+                                game_idx = $1
+                            AND 
+                                deleted_at IS NULL`;
+            const deleteBannerValues = [gameIdx];
+            await pool.query(deleteBannerSQL, deleteBannerValues);
+
+            const insertBannerSQL = `
+                            INSERT INTO
+                                game_img_banner(game_idx, img_path)
+                            VALUES
+                                ($1, $2)`;
+            const insertBannerValues = [gameIdx, location];
+            await pool.query(insertBannerSQL, insertBannerValues);
+
+            res.status(201).send();
+        } catch (e) {
+            next(e);
+        }
+    }
+);
 
 module.exports = router;
