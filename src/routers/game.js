@@ -7,7 +7,7 @@ const checkLogin = require('../middlewares/checkLogin');
 //게임생성요청
 router.post('/request', checkLogin, async (req, res, next) => {
     const { title } = req.body;
-    const userIdx = req.decoded.idx;
+    const { userIdx } = req.decoded;
     try {
         const sql = `
         INSERT INTO 
@@ -247,7 +247,7 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 //게임 수정하기
 router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
-    const userIdx = req.decoded.idx;
+    const { userIdx } = req.decoded;
     const { content } = req.body;
 
     try {
