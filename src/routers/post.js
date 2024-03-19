@@ -20,7 +20,7 @@ router.post('/', async (req, res, next) => {
                 title,
                 content
                 )
-            VALUE
+            VALUES
                 ($1, $2, $3, $4)
             RETURNING
                 idx`;
@@ -38,13 +38,14 @@ router.get('/', async (req, res, next) => {
     try {
         const sql = `
         SELECT 
+            post.idx,
             post.title, 
             post.created_at, 
             post.user_idx,
             "user".nickname,
             COUNT(view.user_idx) AS view_count
         FROM 
-            post 
+            post
         LEFT JOIN
             view ON post.idx = view.post_idx
         JOIN
@@ -66,28 +67,61 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-//게시글 상세보기
-router.get('/:postidx', async (req, res, next) => {
-    const postIdx = req.query.postidx;
+//게시글 검색하기
+router.get('/search', async (req, res, next) => {
+    const search = req.query.search;
+    console.log('실행');
+    console.log(search);
     try {
         const sql = `
         SELECT 
+            post.title, 
+            post.created_at, 
+            "user".nickname,
+            COUNT(view.user_idx) AS view_count
+        FROM 
+            post 
+        LEFT JOIN
+            view ON post.idx = view.post_idx
+        JOIN 
+            "user" ON post.user_idx = "user".idx
+        WHERE
+            post.title LIKE '%${search}%'
+        GROUP BY
+                post.idx, "user".nickname
+        ORDER BY
+            post.idx DESC`;
+        console.log(req.query.search);
+        const data = await pool.query(sql);
+        res.status(200).send({
+            data: data.rows,
+        });
+    } catch (err) {
+        return next(err);
+    }
+});
+
+//게시글 상세보기
+router.get('/:postidx', async (req, res, next) => {
+    const postIdx = req.params.postidx;
+    try {
+        const sql = `
+        SELECT 
+            post.idx,
+            post.user_idx,
             post.*,
             "user".nickname,
-            (
-                SELECT
-                    COUNT(user_idx)
-                FROM
-                    view
-                WHERE
-                    post_idx = $1
-            ) AS view_count
+            COUNT(view.user_idx) AS view_count
         FROM 
             post
+        LEFT JOIN
+            view ON post.idx = view.post_idx
         JOIN
             "user" ON post.user_idx = "user".idx
         WHERE
-            post.idx = $1`;
+            post.idx = $1
+        GROUP BY
+            post.idx, "user".nickname`;
         const values = [postIdx];
         const data = await pool.query(sql, values);
         const result = data.rows;
@@ -95,43 +129,25 @@ router.get('/:postidx', async (req, res, next) => {
             data: result,
         });
     } catch (err) {
-        return next(err);
+        next(err);
     }
 });
 
-//게시글 검색하기
-router.get('/search', async (req, res, next) => {
-    const { keyword } = req.query;
+//게시글 삭제하기
+router.delete('/:postidx', async (req, res, next) => {
+    const postIdx = req.params.postidx;
     try {
         const sql = `
-        SELECT 
-            post.title, 
-            post.created_at, 
-            user.nickname,
-            (
-                SELECT
-                    COUNT(user_idx)
-                FROM
-                    view
-                WHERE
-                    view.post_idx = $1
-            ) AS view_count,
-        FROM 
-            post 
-        JOIN 
-            "user"
-        ON 
-            post.user_idx = user.idx
+        UPDATE post
+        SET
+            deleted_at = now()
         WHERE
-            post.title = ${`keyword`}
-        ORDER BY
-            post.idx DESC`;
-        const data = await pool.query(sql);
-        res.status(200).send({
-            data: data.rows,
-        });
+            idx = $1`;
+        const values = [postIdx];
+        await pool.query(sql, values);
+        res.status(200).send();
     } catch (err) {
-        return next(err);
+        next(err);
     }
 });
 
