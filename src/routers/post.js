@@ -34,6 +34,7 @@ router.post('/', checkLogin, async (req, res, next) => {
 });
 
 //게시판 보기 (게시글 목록보기)
+//무한스크롤
 router.get('/', async (req, res, next) => {
     const gameIdx = req.query.gameidx;
     try {
@@ -71,6 +72,7 @@ router.get('/', async (req, res, next) => {
 });
 
 //게시글 검색하기
+//페이지네이션
 router.get('/search', async (req, res, next) => {
     const search = req.query.search;
     console.log('실행');
