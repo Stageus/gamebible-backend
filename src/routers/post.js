@@ -8,11 +8,11 @@ const checkLogin = require('../middlewares/checkLogin');
 
 //게시글 쓰기
 //이 api는 프론트와 상의 후 수정하기로..
-router.post('/', async (req, res, next) => {
+router.post('/', checkLogin, async (req, res, next) => {
     const { title, content } = req.body;
     const gameIdx = req.query.gameidx;
+    const userIdx = req.decoded.userIdx;
     try {
-        const userIdx = 3;
         const sql = `
         INSERT INTO 
             post(
@@ -64,7 +64,7 @@ router.get('/', async (req, res, next) => {
             data: result,
         });
     } catch (err) {
-        console.log(err);
+        next(err);
     }
 });
 
@@ -103,7 +103,7 @@ router.get('/search', async (req, res, next) => {
 });
 
 //게시글 상세보기
-router.get('/:postidx', async (req, res, next) => {
+router.get('/:postidx', checkLogin, async (req, res, next) => {
     const postIdx = req.params.postidx;
     try {
         const sql = `
@@ -138,7 +138,6 @@ router.get('/:postidx', async (req, res, next) => {
 router.delete('/:postidx', checkLogin, async (req, res, next) => {
     const postIdx = req.params.postidx;
     const userIdx = req.decoded.userIdx;
-    console.log(postIdx, userIdx);
     try {
         const sql = `
         UPDATE post
