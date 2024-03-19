@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
+const { uploadS3 } = require('../middlewares/upload');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
@@ -85,10 +86,17 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
 });
 
 //배너이미지 등록
-router.post('/game/:gameidx/banner', checkLogin, checkAdmin, async (req, res, next) => {
-    const gameIdx = req.params.gameidx;
-    try {
-        const deleteBannerSQL = `
+router.post(
+    '/game/:gameidx/banner',
+    checkLogin,
+    checkAdmin,
+    uploadS3.array('images', 1),
+    async (req, res, next) => {
+        const gameIdx = req.params.gameidx;
+        console.log('req.files');
+        console.log(req.files);
+        try {
+            const deleteBannerSQL = `
                             UPDATE 
                                 game_img_banner
                             SET 
@@ -97,21 +105,22 @@ router.post('/game/:gameidx/banner', checkLogin, checkAdmin, async (req, res, ne
                                 game_idx = $1
                             AND 
                                 deleted_at IS NULL`;
-        const deleteBannerValues = [gameIdx];
-        await pool.query(deleteBannerSQL, deleteBannerValues);
+            const deleteBannerValues = [gameIdx];
+            await pool.query(deleteBannerSQL, deleteBannerValues);
 
-        const insertBannerSQL = `
+            const insertBannerSQL = `
                             INSERT INTO
                                 game_img_banner(game_idx, img_path)
                             VALUES
                                 ($1, $2)`;
-        const insertBannerValues = [gameIdx];
-        await pool.query(insertBannerSQL, insertBannerValues);
+            const insertBannerValues = [gameIdx];
+            await pool.query(insertBannerSQL, insertBannerValues);
 
-        res.status(201).send();
-    } catch (e) {
-        next(e);
+            res.status(201).send();
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 module.exports = router;
