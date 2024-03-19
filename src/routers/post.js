@@ -1,6 +1,7 @@
 //Import
 const router = require('express').Router();
 const { pool } = require('../config/postgres');
+const checkLogin = require('../middlewares/checkLogin');
 
 //Apis
 //사용자 토큰 받아주는 미들웨어 추가하기
@@ -134,16 +135,20 @@ router.get('/:postidx', async (req, res, next) => {
 });
 
 //게시글 삭제하기
-router.delete('/:postidx', async (req, res, next) => {
+router.delete('/:postidx', checkLogin, async (req, res, next) => {
     const postIdx = req.params.postidx;
+    const userIdx = req.decoded.userIdx;
+    console.log(postIdx, userIdx);
     try {
         const sql = `
         UPDATE post
         SET
             deleted_at = now()
         WHERE
-            idx = $1`;
-        const values = [postIdx];
+            idx = $1
+        AND 
+            user_idx = $2`;
+        const values = [postIdx, userIdx];
         await pool.query(sql, values);
         res.status(200).send();
     } catch (err) {
