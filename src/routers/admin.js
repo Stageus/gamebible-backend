@@ -93,9 +93,9 @@ router.post(
     uploadS3.array('images', 1),
     async (req, res, next) => {
         const gameIdx = req.params.gameidx;
-        console.log('req.files');
-        console.log(req.files);
+
         try {
+            const location = req.files[0].location;
             const deleteBannerSQL = `
                             UPDATE 
                                 game_img_banner
@@ -113,7 +113,7 @@ router.post(
                                 game_img_banner(game_idx, img_path)
                             VALUES
                                 ($1, $2)`;
-            const insertBannerValues = [gameIdx];
+            const insertBannerValues = [gameIdx, location];
             await pool.query(insertBannerSQL, insertBannerValues);
 
             res.status(201).send();
