@@ -123,4 +123,45 @@ router.post(
     }
 );
 
+//대표이미지 등록하기
+router.post(
+    '/game/:gameidx/thumnail',
+    checkLogin,
+    checkAdmin,
+    uploadS3.array('images', 1),
+    async (req, res, next) => {
+        console.log('실행');
+        const gameIdx = req.params.gameidx;
+        try {
+            console.log(req.files);
+            const location = req.files[0].location;
+            console.log('location: ', location);
+
+            const deleteThumnailSQL = `
+                                    UPDATE
+                                        game_img_thumnail
+                                    SET
+                                        deleted_at = now()
+                                    WHERE
+                                        game_idx = $1
+                                    AND
+                                        deleted_at IS NULL`;
+            const deleteThumnailValues = [gameIdx];
+            await pool.query(deleteThumnailSQL, deleteThumnailValues);
+
+            const insertThumnailSQL = `
+                                    INSERT INTO
+                                        game_img_thumnail(game_idx, img_path)
+                                    VALUES 
+                                        ( $1, $2 )`;
+            const insertThumnailVALUES = [gameIdx, location];
+            await pool.query(insertThumnailSQL, insertThumnailVALUES);
+
+            res.status(201).send();
+        } catch (e) {
+            next(e);
+        }
+    }
+);
+
 module.exports = router;
