@@ -84,4 +84,34 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
     }
 });
 
+//배너이미지 등록
+router.post('/game/:gameidx/banner', checkLogin, checkAdmin, async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    try {
+        const deleteBannerSQL = `
+                            UPDATE 
+                                game_img_banner
+                            SET 
+                                deleted_at = now()
+                            WHERE 
+                                game_idx = $1
+                            AND 
+                                deleted_at IS NULL`;
+        const deleteBannerValues = [gameIdx];
+        await pool.query(deleteBannerSQL, deleteBannerValues);
+
+        const insertBannerSQL = `
+                            INSERT INTO
+                                game_img_banner(game_idx, img_path)
+                            VALUES
+                                ($1, $2)`;
+        const insertBannerValues = [gameIdx];
+        await pool.query(insertBannerSQL, insertBannerValues);
+
+        res.status(201).send();
+    } catch (e) {
+        next(e);
+    }
+});
+
 module.exports = router;
