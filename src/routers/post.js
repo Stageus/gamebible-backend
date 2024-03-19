@@ -53,6 +53,8 @@ router.get('/', async (req, res, next) => {
             "user" ON post.user_idx = "user".idx
         WHERE
             post.game_idx = $1
+        AND 
+            post.deleted_at IS NULL
         GROUP BY
             post.idx, "user".nickname
         ORDER BY
@@ -88,6 +90,8 @@ router.get('/search', async (req, res, next) => {
             "user" ON post.user_idx = "user".idx
         WHERE
             post.title LIKE '%${search}%'
+        AND 
+            post.deleted_at IS NULL
         GROUP BY
                 post.idx, "user".nickname
         ORDER BY
@@ -121,6 +125,8 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             "user" ON post.user_idx = "user".idx
         WHERE
             post.idx = $1
+        AND 
+            post.deleted_at IS NULL
         GROUP BY
             post.idx, "user".nickname`;
         const values = [postIdx];
