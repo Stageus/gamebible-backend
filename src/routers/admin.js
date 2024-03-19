@@ -66,8 +66,8 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
 });
 
 //승인요청 거부
-router.delete('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
-    const { requestIdx } = req.body;
+router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, res, next) => {
+    const requestIdx = req.params.requestidx;
     try {
         const deleteRequestSQL = `
                             UPDATE
