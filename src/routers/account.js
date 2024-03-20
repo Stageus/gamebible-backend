@@ -141,7 +141,16 @@ router.post('/nickname/check', validateNickname, async (req, res, next) => {
     try {
         const { nickname } = req.body;
 
-        const checkNicknameSql = 'SELECT * FROM "user" WHERE nickname = $1';
+        const checkNicknameSql = `
+        SELECT
+            * 
+        FROM
+            "user" 
+        WHERE 
+            nickname = $1 
+        AND 
+            deleted_at IS NULL`;
+
         const nicknameResults = await pool.query(checkNicknameSql, [nickname]);
         if (nicknameResults.rows.length > 0)
             return res.status(409).send('닉네임이 이미 존재합니다.');
