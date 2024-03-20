@@ -198,11 +198,16 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
 router.post('/email/auth', async (req, res, next) => {
     try {
         const { email, code } = req.body;
-
-        const queryResult = await pool.query(
-            'SELECT * FROM email_verification WHERE email = $1 AND code = $2',
-            [email, code]
-        );
+        const checkEmailSql = `
+        SELECT
+            * 
+        FROM 
+            email_verification 
+        WHERE 
+            email = $1
+        AND
+            code = $2`;
+        const queryResult = await pool.query(checkEmailSql, [email, code]);
         if (queryResult.rows.length > 0) {
             res.status(200).send('이메일 인증이 완료되었습니다.');
         } else {
