@@ -186,7 +186,7 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
         `;
             await pool.query(insertQuery, [email, verificationCode]);
             await sendVerificationEmail(email, verificationCode);
-            deleteCode(pool);
+            await deleteCode(pool);
             return res.status(200).send('인증 코드가 발송되었습니다.');
         }
     } catch (e) {
