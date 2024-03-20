@@ -30,7 +30,7 @@ router.post('/', checkLogin, async (req, res, next) => {
 
 //댓글 보기
 //페이지네이션
-router.get('/', async (req, res, next) => {
+router.get('/', checkLogin, async (req, res, next) => {
     const postIdx = req.query.postidx;
     try {
         const sql = `
