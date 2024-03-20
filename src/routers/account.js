@@ -222,7 +222,15 @@ router.post('/email/auth', async (req, res, next) => {
 router.get('/id', async (req, res, next) => {
     const { email } = req.query;
     try {
-        const findIdxSql = 'SELECT idx FROM "user" WHERE email = $1';
+        const findIdxSql = `
+        SELECT 
+            idx 
+        FROM 
+            "user"
+        WHERE 
+            email = $1
+        AND 
+            deleted_at IS NULL`;
         const results = await pool.query(findIdxSql, [email]);
 
         if (results.length === 0) {
