@@ -26,7 +26,7 @@ async function changePwEmail(email) {
         },
         process.env.SECRET_KEY,
         {
-            expiresIn: '5h',
+            expiresIn: '3m',
         }
     );
 
