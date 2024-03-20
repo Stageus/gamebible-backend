@@ -375,7 +375,7 @@ router.delete('/', checkLogin, async (req, res, next) => {
             idx = $1`;
         await pool.query(deleteSql, [userIdx]);
 
-        return res.status(200).send(result);
+        return res.status(200).send('회원 탈퇴 성공');
     } catch (error) {
         next(error);
     }
