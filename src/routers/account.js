@@ -339,8 +339,8 @@ router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, ne
 
 //프로필 이미지
 router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next) => {
-    const { userIdx } = req.decoded;
     try {
+        const { userIdx } = req.decoded;
         const uploadedFile = req.file;
 
         if (!uploadedFile) {
@@ -356,6 +356,26 @@ router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next
         VALUES ($1, $2);`;
         await pool.query(imageSql, [uploadedFile.location, userIdx]);
         return res.status(200).send('이미지 수정 성공');
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 회원 탈퇴
+router.delete('/', checkLogin, async (req, res, next) => {
+    try {
+        const { userIdx } = req.decoded;
+
+        const deleteSql = `
+        UPDATE
+            "user" 
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        await pool.query(deleteSql, [userIdx]);
+
+        return res.status(200).send(result);
     } catch (error) {
         next(error);
     }
