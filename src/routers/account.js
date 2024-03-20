@@ -166,7 +166,15 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
     try {
         const { email } = req.body;
 
-        const checkEmailSql = 'SELECT * FROM "user" WHERE email = $1';
+        const checkEmailSql = `
+        SELECT
+            * 
+        FROM
+            "user" 
+        WHERE 
+           email = $1 
+        AND 
+            deleted_at IS NULL`;
         const emailResults = await pool.query(checkEmailSql, [email]);
         if (emailResults.rows.length > 0) {
             return res.status(409).send('이메일이 이미 존재합니다.');
