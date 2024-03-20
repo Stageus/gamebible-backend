@@ -112,7 +112,21 @@ router.post('/id/check', validateId, async (req, res, next) => {
     try {
         const { id } = req.body;
 
-        const checkIdSql = 'SELECT * FROM account_local WHERE id = $1';
+        const checkIdSql = `
+        SELECT
+            account_local.* 
+        FROM
+            account_local
+        JOIN
+            "user"
+        ON
+            account_local.user_idx = "user".idx
+        WHERE
+            account_local.id = $1
+        AND 
+            "user".deleted_at IS NULL;
+        `;
+
         const idResults = await pool.query(checkIdSql, [id]);
         if (idResults.rows.length > 0) return res.status(409).send('아이디가 이미 존재합니다.');
 
