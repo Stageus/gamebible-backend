@@ -346,11 +346,16 @@ router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next
         if (!uploadedFile) {
             return res.status(400).send({ message: '업로드 된 파일이 없습니다' });
         }
-        return res.status(200).send({
-            data: {
-                file: uploadedFile.location,
-            },
-        });
+
+        const imageSql = `
+        INSERT INTO 
+            profile_img (
+                img_path, 
+                user_idx
+                )
+        VALUES ($1, $2);`;
+        await pool.query(imageSql, [uploadedFile.location, userIdx]);
+        return res.status(200).send('이미지 수정 성공');
     } catch (error) {
         next(error);
     }
