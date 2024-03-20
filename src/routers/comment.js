@@ -59,4 +59,25 @@ router.get('/', checkLogin, async (req, res, next) => {
     }
 });
 
+//댓글 삭제
+router.delete('/:commentidx', checkLogin, async (req, res, next) => {
+    const commentIdx = req.params.commentidx;
+    try {
+        const userIdx = req.decoded.userIdx;
+        const sql = `
+        UPDATE comment
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1
+        AND 
+            user_idx = $2`;
+        const values = [commentIdx, userIdx];
+        await pool.query(sql, values);
+        res.status(200).send();
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;
