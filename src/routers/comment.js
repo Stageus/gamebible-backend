@@ -36,6 +36,7 @@ router.get('/', checkLogin, async (req, res, next) => {
         const sql = `
         SELECT
             comment.user_idx,
+            comment.idx,
             comment.content,
             comment.created_at,
             "user".nickname
