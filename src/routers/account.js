@@ -283,7 +283,7 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
             "user"
         WHERE
             idx = $1
-            RETURNING *`;
+        RETURNING *`;
         const userInfo = await pool.query(newPwSql, [idx]);
 
         const user = userInfo.rows[0];
@@ -390,7 +390,26 @@ router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next
         if (!uploadedFile) {
             return res.status(400).send({ message: '업로드 된 파일이 없습니다' });
         }
+        const serachImageSql = `
+        SELECT
+            *
+        FROM
+            profile_img
+        WHERE
+            user_idx = $1`;
+        const { rows } = await pool.query(serachImageSql, [userIdx]);
 
+        if (rows.length > 0) {
+            const deleteImageSql = `
+        UPDATE
+            profile_img 
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+            await pool.query(deleteImageSql, [userIdx]);
+            console.log('이전 이미지 삭제');
+        }
         const imageSql = `
         INSERT INTO 
             profile_img (
