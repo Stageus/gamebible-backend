@@ -351,7 +351,7 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
 });
 
 // 내 정보 보기
-router.get('/', checkLogin, async (req, res, next) => {
+router.get('/info', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
@@ -374,7 +374,7 @@ router.get('/', checkLogin, async (req, res, next) => {
 });
 
 // 내 정보 수정
-router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, next) => {
+router.put('/info', checkLogin, validateEmail, validateNickname, async (req, res, next) => {
     const { userIdx } = req.decoded;
     const { nickname, email } = req.body;
     try {
