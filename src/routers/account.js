@@ -22,7 +22,8 @@ const {
 //로그인
 router.post(
     '/auth',
-
+    validateId,
+    validatePassword,
     handleValidationErrors,
     async (req, res, next) => {
         const { id, pw } = req.body;
@@ -35,8 +36,11 @@ router.post(
             JOIN
                 "user" u ON al.user_idx = u.idx
             WHERE
-                al.id = $1 AND al.pw = $2 AND u.deleted_at IS NULL`; // 삭제되지 않은 사용자만 조회
-            const { rows: loginRows } = await pool.query(loginsql, [id, pw]);
+                al.id = $1 AND al.pw = $2 AND u.deleted_at IS NULL`;
+
+            const values = [id, pw];
+
+            const { rows: loginRows } = await pool.query(loginsql, values);
 
             if (loginRows.length === 0) {
                 return res.status(401).send({ message: '인증 실패' });
