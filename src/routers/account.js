@@ -115,7 +115,7 @@ router.post(
 );
 
 //아이디 중복 확인
-router.post('/id/check', validateId, async (req, res, next) => {
+router.post('/id/check', validateId, handleValidationErrors, async (req, res, next) => {
     try {
         const { id } = req.body;
 
@@ -134,7 +134,9 @@ router.post('/id/check', validateId, async (req, res, next) => {
             "user".deleted_at IS NULL;
         `;
 
-        const idResults = await pool.query(checkIdSql, [id]);
+        const values = [id];
+
+        const idResults = await pool.query(checkIdSql, values);
         if (idResults.rows.length > 0) return res.status(409).send('아이디가 이미 존재합니다.');
 
         return res.status(200).send('사용 가능한 아이디입니다.');
