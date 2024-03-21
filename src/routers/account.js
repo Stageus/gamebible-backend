@@ -9,6 +9,7 @@ const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
 const changePwEmail = require('../modules/changePwEmail');
 const deleteCode = require('../modules/deleteCode');
+const { uploadS3 } = require('../middlewares/upload');
 const {
     validateId,
     validateEmail,
@@ -21,7 +22,8 @@ const {
 //로그인
 router.post(
     '/auth',
-
+    validateId,
+    validatePassword,
     handleValidationErrors,
     async (req, res, next) => {
         const { id, pw } = req.body;
@@ -34,11 +36,14 @@ router.post(
             JOIN
                 "user" u ON al.user_idx = u.idx
             WHERE
-                al.id = $1 AND al.pw = $2 AND u.deleted_at IS NULL`; // 삭제되지 않은 사용자만 조회
-            const { rows: loginRows } = await pool.query(loginsql, [id, pw]);
+                al.id = $1 AND al.pw = $2 AND u.deleted_at IS NULL`;
+
+            const values = [id, pw];
+
+            const { rows: loginRows } = await pool.query(loginsql, values);
 
             if (loginRows.length === 0) {
-                return res.status(401).send({ message: '인증 실패' });
+                return res.status(401).send({ message: '로그인 실패' });
             }
 
             const login = loginRows[0];
@@ -87,7 +92,11 @@ router.post(
                     ) 
             VALUES ($1, $2, $3)
             RETURNING idx`;
-            const userResult = await pool.query(insertUserSql, [nickname, email, isadmin]);
+            const userValues = [nickname, email, isadmin];
+            const userResult = await pool.query(insertUserSql, userValues);
+            if (userResult.rows.length === 0) {
+                return res.status(401).send({ message: '회원가입 실패' });
+            }
             const userIdx = userResult.rows[0].idx;
 
             const insertAccountSql = `
@@ -98,7 +107,11 @@ router.post(
                     pw
                     )
             VALUES ($1, $2, $3)`;
-            await pool.query(insertAccountSql, [userIdx, id, pw]);
+            const accountValues = [userIdx, id, pw];
+            const accountResult = await pool.query(insertAccountSql, accountValues);
+            if (accountResult.rows.length === 0) {
+                return res.status(401).send({ message: '회원가입 실패' });
+            }
             return res.status(200).send('회원가입 성공');
         } catch (e) {
             next(e);
@@ -107,12 +120,28 @@ router.post(
 );
 
 //아이디 중복 확인
-router.post('/id/check', validateId, async (req, res, next) => {
+router.post('/id/check', validateId, handleValidationErrors, async (req, res, next) => {
     try {
         const { id } = req.body;
 
-        const checkIdSql = 'SELECT * FROM account_local WHERE id = $1';
-        const idResults = await pool.query(checkIdSql, [id]);
+        const checkIdSql = `
+        SELECT
+            account_local.* 
+        FROM
+            account_local
+        JOIN
+            "user"
+        ON
+            account_local.user_idx = "user".idx
+        WHERE
+            account_local.id = $1
+        AND 
+            "user".deleted_at IS NULL;
+        `;
+
+        const values = [id];
+
+        const idResults = await pool.query(checkIdSql, values);
         if (idResults.rows.length > 0) return res.status(409).send('아이디가 이미 존재합니다.');
 
         return res.status(200).send('사용 가능한 아이디입니다.');
@@ -126,8 +155,19 @@ router.post('/nickname/check', validateNickname, async (req, res, next) => {
     try {
         const { nickname } = req.body;
 
-        const checkNicknameSql = 'SELECT * FROM "user" WHERE nickname = $1';
-        const nicknameResults = await pool.query(checkNicknameSql, [nickname]);
+        const checkNicknameSql = `
+        SELECT
+            * 
+        FROM
+            "user" 
+        WHERE 
+            nickname = $1 
+        AND 
+            deleted_at IS NULL`;
+
+        const value = [nickname];
+
+        const nicknameResults = await pool.query(checkNicknameSql, value);
         if (nicknameResults.rows.length > 0)
             return res.status(409).send('닉네임이 이미 존재합니다.');
 
@@ -142,19 +182,38 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
     try {
         const { email } = req.body;
 
-        const checkEmailSql = 'SELECT * FROM "user" WHERE email = $1';
-        const emailResults = await pool.query(checkEmailSql, [email]);
+        const checkEmailSql = `
+        SELECT
+            * 
+        FROM
+            "user" 
+        WHERE 
+           email = $1 
+        AND 
+            deleted_at IS NULL`;
+
+        const checkEmailvalue = [email];
+        const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
         if (emailResults.rows.length > 0) {
             return res.status(409).send('이메일이 이미 존재합니다.');
         } else {
             const verificationCode = generateVerificationCode();
             const insertQuery = `
-            INSERT INTO email_verification (email, code)
-            VALUES ($1, $2)
-        `;
-            await pool.query(insertQuery, [email, verificationCode]);
+            INSERT INTO
+                email_verification (
+                    email,
+                    code
+                    )
+            VALUES
+                ($1, $2)
+            `;
+            const codeValues = [email, verificationCode];
+            const codeResults = await pool.query(insertQuery, codeValues);
+            if (codeResults.rows.length == 0) {
+                return res.status(401).send('코드 저장 오류');
+            }
             await sendVerificationEmail(email, verificationCode);
-            deleteCode(pool);
+            await deleteCode(pool);
             return res.status(200).send('인증 코드가 발송되었습니다.');
         }
     } catch (e) {
@@ -166,16 +225,20 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
 router.post('/email/auth', async (req, res, next) => {
     try {
         const { email, code } = req.body;
-
-        const queryResult = await pool.query(
-            'SELECT * FROM email_verification WHERE email = $1 AND code = $2',
-            [email, code]
-        );
-        if (queryResult.rows.length > 0) {
-            res.status(200).send('이메일 인증이 완료되었습니다.');
-        } else {
+        const checkEmailSql = `
+        SELECT
+            * 
+        FROM 
+            email_verification 
+        WHERE 
+            email = $1
+        AND
+            code = $2`;
+        const queryResult = await pool.query(checkEmailSql, [email, code]);
+        if (queryResult.rows.length == 0) {
             res.status(400).send('잘못된 인증 코드입니다.');
         }
+        res.status(400).send('잘못된 인증 코드입니다.');
     } catch (e) {
         next(e);
     }
@@ -185,17 +248,36 @@ router.post('/email/auth', async (req, res, next) => {
 router.get('/id', async (req, res, next) => {
     const { email } = req.query;
     try {
-        const findIdxSql = 'SELECT idx FROM "user" WHERE email = $1';
-        const results = await pool.query(findIdxSql, [email]);
+        const findIdxSql = `
+        SELECT 
+            idx 
+        FROM 
+            "user"
+        WHERE 
+            email = $1
+        AND 
+            deleted_at IS NULL`;
+        const findIdxvalue = [email];
+        const results = await pool.query(findIdxSql, findIdxvalue);
 
-        if (results.length === 0) {
-            return res.status(400).send(createResult('일치하는 사용자가 없습니다.'));
+        if (results.rows.length === 0) {
+            return res.status(400).send('일치하는 사용자가 없습니다.');
         }
-        const findIdSql = 'SELECT id FROM account_local WHERE user_idx = $1';
-        const idResults = await pool.query(findIdSql, [results.rows[0].idx]);
+        const findIdSql = `
+        SELECT 
+            id 
+        FROM 
+            account_local 
+        WHERE 
+            user_idx = $1`;
 
+        const findIdValue = [results.rows[0].idx];
+        const idResults = await pool.query(findIdSql, findIdValue);
+        if (idResults.rows.length === 0) {
+            return res.status(400).send('일치하는 사용자가 없습니다.');
+        }
         const foundId = idResults.rows[0].id;
-        console.log(foundId);
+
         return res.status(200).send({ id: foundId });
     } catch (error) {
         next(error);
@@ -227,8 +309,11 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
             deleted_at = now()
         WHERE
             idx = $1`;
-        await pool.query(deletePwSql, [idx]);
-
+        const deletePwValue = [idx];
+        const deletePwResult = await pool.query(deletePwSql, deletePwValue);
+        if (deletePwResult.rows.length === 0) {
+            return res.status(400).send('비밀번호 변경 실패');
+        }
         const newPwSql = `
         INSERT INTO 
             "user" (is_admin, nickname, email)
@@ -238,9 +323,11 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
             "user"
         WHERE
             idx = $1
-            RETURNING *`;
-        const userInfo = await pool.query(newPwSql, [idx]);
-
+        RETURNING *`;
+        const userInfo = await pool.query(newPwSql, deletePwValue);
+        if (userInfo.rows.length === 0) {
+            return res.status(400).send('비밀번호 변경 실패');
+        }
         const user = userInfo.rows[0];
 
         const changePwSql = `
@@ -252,7 +339,11 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
             account_local
         WHERE
             user_idx=$1`;
-        await pool.query(changePwSql, [idx, pw, user.idx]);
+        const changePwValue = [idx, pw, user.idx];
+        const changePwResult = await pool.query(changePwSql, changePwValue);
+        if (changePwResult.rows.length === 0) {
+            return res.status(400).send('비밀번호 변경 실패');
+        }
         return res.status(200).send('비밀번호 변경 성공');
     } catch (error) {
         next(error);
@@ -330,17 +421,71 @@ router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, ne
         WHERE
             user_idx=$1`;
         await pool.query(changeInfoSql, [userIdx, user.idx]);
+
         return res.status(200).send('내 정보 수정 성공');
     } catch (error) {
         next(error);
     }
 });
 
-router.put('/image', checkLogin, async (req, res, next) => {
-    const { userIdx } = req.decoded;
-    const { image_path } = req.body;
+//프로필 이미지
+router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next) => {
     try {
-        return res.status(200).send('프로필 이미지 수정 성공');
+        const { userIdx } = req.decoded;
+        const uploadedFile = req.file;
+
+        if (!uploadedFile) {
+            return res.status(400).send({ message: '업로드 된 파일이 없습니다' });
+        }
+        const serachImageSql = `
+        SELECT
+            *
+        FROM
+            profile_img
+        WHERE
+            user_idx = $1`;
+        const { rows } = await pool.query(serachImageSql, [userIdx]);
+
+        if (rows.length > 0) {
+            const deleteImageSql = `
+        UPDATE
+            profile_img 
+        SET
+            deleted_at = now()
+        WHERE
+            user_idx = $1`;
+            await pool.query(deleteImageSql, [userIdx]);
+            console.log('이전 이미지 삭제');
+        }
+        const imageSql = `
+        INSERT INTO 
+            profile_img (
+                img_path, 
+                user_idx
+                )
+        VALUES ($1, $2);`;
+        await pool.query(imageSql, [uploadedFile.location, userIdx]);
+        return res.status(200).send('이미지 수정 성공');
+    } catch (error) {
+        next(error);
+    }
+});
+
+// 회원 탈퇴
+router.delete('/', checkLogin, async (req, res, next) => {
+    try {
+        const { userIdx } = req.decoded;
+
+        const deleteSql = `
+        UPDATE
+            "user" 
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        await pool.query(deleteSql, [userIdx]);
+
+        return res.status(200).send('회원 탈퇴 성공');
     } catch (error) {
         next(error);
     }
