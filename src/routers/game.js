@@ -93,20 +93,18 @@ router.get(
 );
 
 //인기게임목록불러오기(게시글순)
-// 10개 단위로 불러오기
+// 4 -> 3 -> 3 순서로 불러오기 (19 -> 16 -> 16...로수정 )
 router.get('/popular', async (req, res, next) => {
     const page = req.query.page || 1;
 
-    // if ((page == 1)) {
-    //     const skip = 31;
-    // } else {
-    //     const skip = (page - 1) * 16 + 31;
-    // }
     let skip;
+    let count;
     if (page == 1) {
-        skip = 7;
+        count = 3;
+        skip = 0;
     } else {
-        skip = (page - 1) * 4 + 7;
+        count = 4;
+        skip = (page - 2) * 4 + 3;
     }
 
     const result = {
@@ -114,10 +112,9 @@ router.get('/popular', async (req, res, next) => {
     };
 
     try {
-        // deleted_at IS NULL 조건때문에 대표이미지없으면 인기게임 목록에 안나옴. 기본이미지 설정해야함
         const sql = `
                 SELECT
-                    g.title, count(*) ,t.img_path  
+                    g.title, count(*) AS post_count ,t.img_path  
                 FROM 
                     game g 
                 JOIN 
@@ -133,19 +130,20 @@ router.get('/popular', async (req, res, next) => {
                 GROUP BY 
                     g.title, t.img_path 
                 ORDER BY 
-                    count DESC
+                    post_count DESC
                 LIMIT
-                    10
+                    $1
                 OFFSET
-                 $1`;
+                 $2`;
 
-        const values = [skip];
+        const values = [count, skip];
         const popularSelectSQLResult = await pool.query(sql, values);
         console.log('popularSelectSQLResult: ', popularSelectSQLResult);
         const popularGameList = popularSelectSQLResult.rows;
 
         result.data.page = page;
         result.data.skip = skip;
+        result.data.count = count;
         result.data.popularGameList = popularGameList;
 
         res.status(200).send(result);
