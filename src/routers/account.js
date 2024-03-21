@@ -94,7 +94,7 @@ router.post(
             RETURNING idx`;
             const userValues = [nickname, email, isadmin];
             const userResult = await pool.query(insertUserSql, userValues);
-            if (userResult === 0) {
+            if (userResult.rows.length === 0) {
                 return res.status(401).send({ message: '회원가입 실패' });
             }
             const userIdx = userResult.rows[0].idx;
@@ -109,7 +109,7 @@ router.post(
             VALUES ($1, $2, $3)`;
             const accountValues = [userIdx, id, pw];
             const accountResult = await pool.query(insertAccountSql, accountValues);
-            if (accountResult === 0) {
+            if (accountResult.rows.length === 0) {
                 return res.status(401).send({ message: '회원가입 실패' });
             }
             return res.status(200).send('회원가입 성공');
@@ -165,7 +165,9 @@ router.post('/nickname/check', validateNickname, async (req, res, next) => {
         AND 
             deleted_at IS NULL`;
 
-        const nicknameResults = await pool.query(checkNicknameSql, [nickname]);
+        const value = [nickname];
+
+        const nicknameResults = await pool.query(checkNicknameSql, value);
         if (nicknameResults.rows.length > 0)
             return res.status(409).send('닉네임이 이미 존재합니다.');
 
@@ -189,16 +191,27 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
            email = $1 
         AND 
             deleted_at IS NULL`;
-        const emailResults = await pool.query(checkEmailSql, [email]);
+
+        const checkEmailvalue = [email];
+        const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
         if (emailResults.rows.length > 0) {
             return res.status(409).send('이메일이 이미 존재합니다.');
         } else {
             const verificationCode = generateVerificationCode();
             const insertQuery = `
-            INSERT INTO email_verification (email, code)
-            VALUES ($1, $2)
-        `;
-            await pool.query(insertQuery, [email, verificationCode]);
+            INSERT INTO
+                email_verification (
+                    email,
+                    code
+                    )
+            VALUES
+                ($1, $2)
+            `;
+            const codeValues = [email, verificationCode];
+            const codeResults = await pool.query(insertQuery, codeValues);
+            if (codeResults.rows.length == 0) {
+                return res.status(401).send('코드 저장 오류');
+            }
             await sendVerificationEmail(email, verificationCode);
             await deleteCode(pool);
             return res.status(200).send('인증 코드가 발송되었습니다.');
