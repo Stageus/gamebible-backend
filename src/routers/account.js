@@ -235,11 +235,10 @@ router.post('/email/auth', async (req, res, next) => {
         AND
             code = $2`;
         const queryResult = await pool.query(checkEmailSql, [email, code]);
-        if (queryResult.rows.length > 0) {
-            res.status(200).send('이메일 인증이 완료되었습니다.');
-        } else {
+        if (queryResult.rows.length == 0) {
             res.status(400).send('잘못된 인증 코드입니다.');
         }
+        res.status(400).send('잘못된 인증 코드입니다.');
     } catch (e) {
         next(e);
     }
@@ -402,8 +401,6 @@ router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, ne
         WHERE
             user_idx=$1`;
         await pool.query(changeInfoSql, [userIdx, user.idx]);
-        //다른 테이블의 user_idx를 다 update 해줘야함??????????
-        //user_idx를 동일하게 가져와야함?
 
         return res.status(200).send('내 정보 수정 성공');
     } catch (error) {
