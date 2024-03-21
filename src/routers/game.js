@@ -25,10 +25,11 @@ router.post('/request', checkLogin, async (req, res, next) => {
 
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
-    const lastIdx = req.query.lastidx;
+    let page = req.query.page;
     const result = {
         data: {},
     };
+    const skip = page * 3 - 3;
 
     try {
         const sql = `
@@ -41,14 +42,16 @@ router.get('/', async (req, res, next) => {
         ORDER BY 
             title ASC
         LIMIT 
-            10
+            3
         OFFSET
             $1`;
-        const values = [lastIdx];
+        const values = [skip];
         const gameSelectSQLResult = await pool.query(sql, values);
 
         const gameList = gameSelectSQLResult.rows;
-        result.data = gameList;
+        result.data.page = page;
+        result.data.skip = skip;
+        result.data.gameList = gameList;
 
         res.status(200).send(result);
     } catch (e) {
