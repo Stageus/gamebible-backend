@@ -92,7 +92,10 @@ router.post(
                     ) 
             VALUES ($1, $2, $3)
             RETURNING idx`;
-            const userResult = await pool.query(insertUserSql, [nickname, email, isadmin]);
+
+            const values = [nickname, email, isadmin];
+
+            const userResult = await pool.query(insertUserSql, values);
             const userIdx = userResult.rows[0].idx;
 
             const insertAccountSql = `
