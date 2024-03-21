@@ -7,7 +7,7 @@ const { uploadS3 } = require('../middlewares/upload');
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { requestIdx } = req.body;
-    const { userIdx, isAdmin } = req.decoded;
+    const { userIdx } = req.decoded;
     try {
         const updateRequestSQL = `
                             UPDATE
