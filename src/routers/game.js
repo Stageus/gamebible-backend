@@ -25,10 +25,11 @@ router.post('/request', checkLogin, async (req, res, next) => {
 
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
-    const lastIdx = req.query.lastidx;
+    let page = req.query.page;
     const result = {
         data: {},
     };
+    const skip = page * 3 - 3;
 
     try {
         const sql = `
@@ -41,14 +42,16 @@ router.get('/', async (req, res, next) => {
         ORDER BY 
             title ASC
         LIMIT 
-            10
+            3
         OFFSET
             $1`;
-        const values = [lastIdx];
+        const values = [skip];
         const gameSelectSQLResult = await pool.query(sql, values);
 
         const gameList = gameSelectSQLResult.rows;
-        result.data = gameList;
+        result.data.page = page;
+        result.data.skip = skip;
+        result.data.gameList = gameList;
 
         res.status(200).send(result);
     } catch (e) {
@@ -90,36 +93,58 @@ router.get(
 );
 
 //인기게임목록불러오기(게시글순)
-// 10개 단위로 불러오기
+// 4 -> 3 -> 3 순서로 불러오기 (19 -> 16 -> 16...로수정 )
 router.get('/popular', async (req, res, next) => {
-    const lastIdx = req.query.lastidx;
+    const page = req.query.page || 1;
+
+    let skip;
+    let count;
+    if (page == 1) {
+        count = 3;
+        skip = 0;
+    } else {
+        count = 4;
+        skip = (page - 2) * 4 + 3;
+    }
+
     const result = {
         data: {},
     };
+
     try {
         const sql = `
-        SELECT 
-            g.title, count(g.title)
-        FROM
-            game g
-        RIGHT JOIN 
-            post p
-        ON 
-            g.idx = p.game_idx
-        group by 
-            g.title 
-        order by 
-            count DESC
-        limit 
-            10
-        OFFSET 
-            $1`;
+                SELECT
+                    g.title, count(*) AS post_count ,t.img_path  
+                FROM 
+                    game g 
+                JOIN 
+                    post p 
+                ON 
+                    g.idx = p.game_idx 
+                JOIN 
+                    game_img_thumnail t 
+                ON 
+                    g.idx = t.game_idx 
+                WHERE 
+                    t.deleted_at IS NULL 
+                GROUP BY 
+                    g.title, t.img_path 
+                ORDER BY 
+                    post_count DESC
+                LIMIT
+                    $1
+                OFFSET
+                 $2`;
 
-        const values = [lastIdx];
+        const values = [count, skip];
         const popularSelectSQLResult = await pool.query(sql, values);
+        console.log('popularSelectSQLResult: ', popularSelectSQLResult);
         const popularGameList = popularSelectSQLResult.rows;
-        console.log('popularGameList: ', popularGameList);
-        result.data = popularGameList;
+
+        result.data.page = page;
+        result.data.skip = skip;
+        result.data.count = count;
+        result.data.popularGameList = popularGameList;
 
         res.status(200).send(result);
     } catch (e) {
