@@ -25,11 +25,12 @@ router.post('/request', checkLogin, async (req, res, next) => {
 
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
-    let page = req.query.page;
+    let { page } = req.query;
     const result = {
         data: {},
     };
-    const skip = page * 3 - 3;
+    //20개씩 불러오기
+    const skip = (page - 1) * 20;
 
     try {
         const sql = `
@@ -42,7 +43,7 @@ router.get('/', async (req, res, next) => {
         ORDER BY 
             title ASC
         LIMIT 
-            3
+            20
         OFFSET
             $1`;
         const values = [skip];
@@ -51,6 +52,7 @@ router.get('/', async (req, res, next) => {
         const gameList = gameSelectSQLResult.rows;
         result.data.page = page;
         result.data.skip = skip;
+        result.data.count = gameList.length;
         result.data.gameList = gameList;
 
         res.status(200).send(result);
@@ -95,16 +97,18 @@ router.get(
 //인기게임목록불러오기(게시글순)
 // 4 -> 3 -> 3 순서로 불러오기 (19 -> 16 -> 16...로수정 )
 router.get('/popular', async (req, res, next) => {
-    const page = req.query.page || 1;
+    const { page } = req.query || 1;
 
     let skip;
     let count;
     if (page == 1) {
-        count = 3;
+        //1페이지는 19개 불러오기
+        count = 19;
         skip = 0;
     } else {
-        count = 4;
-        skip = (page - 2) * 4 + 3;
+        //2페이지부터는 16개씩불러오기
+        count = 16;
+        skip = (page - 1) * 16 + 3;
     }
 
     const result = {
@@ -134,16 +138,15 @@ router.get('/popular', async (req, res, next) => {
                 LIMIT
                     $1
                 OFFSET
-                 $2`;
+                    $2`;
 
         const values = [count, skip];
         const popularSelectSQLResult = await pool.query(sql, values);
-        console.log('popularSelectSQLResult: ', popularSelectSQLResult);
         const popularGameList = popularSelectSQLResult.rows;
 
         result.data.page = page;
         result.data.skip = skip;
-        result.data.count = count;
+        result.data.count = popularGameList.length;
         result.data.popularGameList = popularGameList;
 
         res.status(200).send(result);
@@ -199,8 +202,6 @@ router.get('/:gameidx/history', async (req, res, next) => {
             historyList.push(history);
         });
         result.data = historyList;
-
-        console.log(result.data);
 
         res.status(200).send(result);
     } catch (e) {
