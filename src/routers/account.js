@@ -43,7 +43,7 @@ router.post(
             const { rows: loginRows } = await pool.query(loginsql, values);
 
             if (loginRows.length === 0) {
-                return res.status(401).send({ message: '인증 실패' });
+                return res.status(401).send({ message: '로그인 실패' });
             }
 
             const login = loginRows[0];
@@ -92,10 +92,11 @@ router.post(
                     ) 
             VALUES ($1, $2, $3)
             RETURNING idx`;
-
-            const values = [nickname, email, isadmin];
-
-            const userResult = await pool.query(insertUserSql, values);
+            const userValues = [nickname, email, isadmin];
+            const userResult = await pool.query(insertUserSql, userValues);
+            if (userResult === 0) {
+                return res.status(401).send({ message: '회원가입 실패' });
+            }
             const userIdx = userResult.rows[0].idx;
 
             const insertAccountSql = `
@@ -106,7 +107,11 @@ router.post(
                     pw
                     )
             VALUES ($1, $2, $3)`;
-            await pool.query(insertAccountSql, [userIdx, id, pw]);
+            const accountValues = [userIdx, id, pw];
+            const accountResult = await pool.query(insertAccountSql, accountValues);
+            if (accountResult === 0) {
+                return res.status(401).send({ message: '회원가입 실패' });
+            }
             return res.status(200).send('회원가입 성공');
         } catch (e) {
             next(e);
