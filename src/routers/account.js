@@ -260,8 +260,8 @@ router.get('/id', async (req, res, next) => {
         const findIdxvalue = [email];
         const results = await pool.query(findIdxSql, findIdxvalue);
 
-        if (results.length === 0) {
-            return res.status(400).send(createResult('일치하는 사용자가 없습니다.'));
+        if (results.rows.length === 0) {
+            return res.status(400).send('일치하는 사용자가 없습니다.');
         }
         const findIdSql = `
         SELECT 
@@ -273,8 +273,8 @@ router.get('/id', async (req, res, next) => {
 
         const findIdValue = [results.rows[0].idx];
         const idResults = await pool.query(findIdSql, findIdValue);
-        if (idResults.length === 0) {
-            return res.status(400).send(createResult('일치하는 사용자가 없습니다.'));
+        if (idResults.rows.length === 0) {
+            return res.status(400).send('일치하는 사용자가 없습니다.');
         }
         const foundId = idResults.rows[0].id;
 
@@ -309,8 +309,11 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
             deleted_at = now()
         WHERE
             idx = $1`;
-        await pool.query(deletePwSql, [idx]);
-
+        const deletePwValue = [idx];
+        const deletePwResult = await pool.query(deletePwSql, deletePwValue);
+        if (deletePwResult.length === 0) {
+            return res.status(400).send('비밀번호 변경 실패');
+        }
         const newPwSql = `
         INSERT INTO 
             "user" (is_admin, nickname, email)
@@ -321,7 +324,7 @@ router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
         WHERE
             idx = $1
         RETURNING *`;
-        const userInfo = await pool.query(newPwSql, [idx]);
+        const userInfo = await pool.query(newPwSql, deletePwValue);
 
         const user = userInfo.rows[0];
 
