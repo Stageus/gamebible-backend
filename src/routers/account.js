@@ -257,16 +257,27 @@ router.get('/id', async (req, res, next) => {
             email = $1
         AND 
             deleted_at IS NULL`;
-        const results = await pool.query(findIdxSql, [email]);
+        const findIdxvalue = [email];
+        const results = await pool.query(findIdxSql, findIdxvalue);
 
         if (results.length === 0) {
             return res.status(400).send(createResult('일치하는 사용자가 없습니다.'));
         }
-        const findIdSql = 'SELECT id FROM account_local WHERE user_idx = $1';
-        const idResults = await pool.query(findIdSql, [results.rows[0].idx]);
+        const findIdSql = `
+        SELECT 
+            id 
+        FROM 
+            account_local 
+        WHERE 
+            user_idx = $1`;
 
+        const findIdValue = [results.rows[0].idx];
+        const idResults = await pool.query(findIdSql, findIdValue);
+        if (idResults.length === 0) {
+            return res.status(400).send(createResult('일치하는 사용자가 없습니다.'));
+        }
         const foundId = idResults.rows[0].id;
-        console.log(foundId);
+
         return res.status(200).send({ id: foundId });
     } catch (error) {
         next(error);
