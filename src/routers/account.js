@@ -375,6 +375,9 @@ router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, ne
         WHERE
             user_idx=$1`;
         await pool.query(changeInfoSql, [userIdx, user.idx]);
+        //다른 테이블의 user_idx를 다 update 해줘야함??????????
+        //user_idx를 동일하게 가져와야함?
+
         return res.status(200).send('내 정보 수정 성공');
     } catch (error) {
         next(error);
@@ -406,7 +409,7 @@ router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next
         SET
             deleted_at = now()
         WHERE
-            idx = $1`;
+            user_idx = $1`;
             await pool.query(deleteImageSql, [userIdx]);
             console.log('이전 이미지 삭제');
         }
