@@ -31,12 +31,39 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         const title = selectResult.title;
 
         const insertGameSQL = `
-        INSERT INTO 
+        INSERT INTO
             game(title, user_idx)
         VALUES
             ( $1, $2 )`;
         const insertGamevalues = [title, userIdx];
         await pool.query(insertGameSQL, insertGamevalues);
+
+        const selectLatestGameSQL = `
+                                    SELECT 
+                                        idx
+                                    FROM
+                                        game
+                                    ORDER BY 
+                                        idx DESC
+                                    limit 1`;
+        const selectLatestGameResult = await pool.query(selectLatestGameSQL);
+        const latestGameIdx = selectLatestGameResult.rows[0].idx;
+
+        const insertThumnailSQL = `
+                                INSERT INTO
+                                    game_img_thumnail(game_idx)
+                                VALUES ( $1 )
+                                 `;
+        const insertThumnailValues = [latestGameIdx];
+        await pool.query(insertThumnailSQL, insertThumnailValues);
+
+        const insertBannerSQL = `
+                                INSERT INTO
+                                    game_img_banner(game_idx)
+                                VALUES ( $1 )
+                                 `;
+        const insertBannerValues = [latestGameIdx];
+        await pool.query(insertBannerSQL, insertBannerValues);
 
         res.status(201).send();
     } catch (e) {
