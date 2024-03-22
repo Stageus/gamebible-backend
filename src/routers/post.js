@@ -34,6 +34,7 @@ router.post('/', checkLogin, async (req, res, next) => {
 
 //게시판 보기 (게시글 목록보기)
 //무한스크롤
+//deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자임을 구분하도록
 router.get('/', async (req, res, next) => {
     const gameIdx = req.query.gameidx;
     try {
@@ -44,7 +45,16 @@ router.get('/', async (req, res, next) => {
             post.created_at, 
             post.user_idx,
             "user".nickname,
-            COUNT(view.user_idx) AS view_count
+            "user".deleted_at,
+            -- 조회수
+            (
+                SELECT
+                    COUNT(*)::int
+                FROM
+                    view
+                WHERE
+                    post_idx = post.idx
+            ) AS view
         FROM 
             post
         LEFT JOIN
@@ -55,13 +65,12 @@ router.get('/', async (req, res, next) => {
             post.game_idx = $1
         AND 
             post.deleted_at IS NULL
-        GROUP BY
-            post.idx, "user".nickname
         ORDER BY
             post.idx DESC`;
         const values = [gameIdx];
         const data = await pool.query(sql, values);
         const result = data.rows;
+        console.log(result);
         res.status(200).send({
             data: result,
         });
@@ -82,7 +91,15 @@ router.get('/search', async (req, res, next) => {
             post.title, 
             post.created_at, 
             "user".nickname,
-            COUNT(view.user_idx) AS view_count
+            -- 조회수
+            (
+                SELECT
+                    COUNT(*)::int
+                FROM
+                    view
+                WHERE
+                    post_idx = post.idx 
+            ) AS view
         FROM 
             post 
         LEFT JOIN
@@ -117,19 +134,23 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             post.user_idx,
             post.*,
             "user".nickname,
-            COUNT(view.user_idx) AS view_count
+            -- 조회수 불러오기
+            (
+                SELECT
+                    COUNT(*)::int
+                FROM
+                    view
+                WHERE
+                    post_idx = post.idx 
+            ) AS view
         FROM 
             post
-        LEFT JOIN
-            view ON post.idx = view.post_idx
         JOIN
             "user" ON post.user_idx = "user".idx
         WHERE
             post.idx = $1
         AND 
-            post.deleted_at IS NULL
-        GROUP BY
-            post.idx, "user".nickname`;
+            post.deleted_at IS NULL`;
         const values = [postIdx];
         const data = await pool.query(sql, values);
         const result = data.rows;
