@@ -9,33 +9,33 @@ const { generateNotification } = require('../modules/generateNotification');
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { requestIdx } = req.body;
     try {
+        await pool.query('BEGIN');
         const updateRequestSQL = `
-                            UPDATE
-                                request
-                            SET 
-                                deleted_at = now(), is_confirmed = true
-                            WHERE idx = $1`;
+                                UPDATE
+                                    request
+                                SET 
+                                    deleted_at = now(), is_confirmed = true
+                                WHERE idx = $1`;
         const updateRequestValues = [requestIdx];
         await pool.query(updateRequestSQL, updateRequestValues);
 
         const selectRequestSQL = `
-                            SELECT
-                                title, user_idx
-                            FROM
-                                request
-                            WHERE 
-                                idx = $1`;
+                                SELECT
+                                    title, user_idx
+                                FROM
+                                    request
+                                WHERE 
+                                    idx = $1`;
         const selectRequestValues = [requestIdx];
         const selectRequestSQLResult = await pool.query(selectRequestSQL, selectRequestValues);
         const selectedRequest = selectRequestSQLResult.rows[0];
-        const title = selectedRequest.title;
-        const userIdx = selectedRequest.user_idx;
+
         const insertGameSQL = `
-        INSERT INTO
-            game(title, user_idx)
-        VALUES
-            ( $1, $2 )`;
-        const insertGamevalues = [title, userIdx];
+                            INSERT INTO
+                                game(title, user_idx)
+                            VALUES
+                                ( $1, $2 )`;
+        const insertGamevalues = [selectedRequest.title, selectedRequest.user_idx];
         await pool.query(insertGameSQL, insertGamevalues);
 
         const selectLatestGameSQL = `
@@ -65,10 +65,11 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         const insertBannerValues = [latestGameIdx];
         await pool.query(insertBannerSQL, insertBannerValues);
 
-        generateNotification(4, userIdx, latestGameIdx);
-
+        await generateNotification(3, selectedRequest.user_idx, latestGameIdx);
         res.status(201).send();
+        await pool.query('COMMIT');
     } catch (e) {
+        await pool.query('ROLLBACK');
         next(e);
     }
 });
