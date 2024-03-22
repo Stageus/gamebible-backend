@@ -3,11 +3,11 @@ const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
+const { generateNotification } = require('../modules/generateNotification');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { requestIdx } = req.body;
-    const { userIdx } = req.decoded;
     try {
         const updateRequestSQL = `
                             UPDATE
@@ -18,18 +18,18 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         const updateRequestValues = [requestIdx];
         await pool.query(updateRequestSQL, updateRequestValues);
 
-        const selectTitleSQL = `
+        const selectRequestSQL = `
                             SELECT
-                                title
+                                title, user_idx
                             FROM
                                 request
                             WHERE 
                                 idx = $1`;
-        const selectTitleValues = [requestIdx];
-        const selectTitleSQLResult = await pool.query(selectTitleSQL, selectTitleValues);
-        const selectResult = selectTitleSQLResult.rows[0];
-        const title = selectResult.title;
-
+        const selectRequestValues = [requestIdx];
+        const selectRequestSQLResult = await pool.query(selectRequestSQL, selectRequestValues);
+        const selectedRequest = selectRequestSQLResult.rows[0];
+        const title = selectedRequest.title;
+        const userIdx = selectedRequest.user_idx;
         const insertGameSQL = `
         INSERT INTO
             game(title, user_idx)
@@ -64,6 +64,8 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
                                  `;
         const insertBannerValues = [latestGameIdx];
         await pool.query(insertBannerSQL, insertBannerValues);
+
+        generateNotification(4, userIdx, latestGameIdx);
 
         res.status(201).send();
     } catch (e) {
