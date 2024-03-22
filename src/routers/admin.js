@@ -65,7 +65,6 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         const insertBannerValues = [latestGameIdx];
         await pool.query(insertBannerSQL, insertBannerValues);
 
-        await generateNotification(3, selectedRequest.user_idx, latestGameIdx);
         res.status(201).send();
         await pool.query('COMMIT');
     } catch (e) {
