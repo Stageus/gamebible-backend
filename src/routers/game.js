@@ -119,7 +119,7 @@ router.get('/popular', async (req, res, next) => {
     try {
         const sql = `
                 SELECT
-                    g.title, count(*) AS post_count ,t.img_path  
+                    g.idx, g.title, count(*) AS post_count ,t.img_path  
                 FROM 
                     game g 
                 JOIN 
@@ -133,7 +133,7 @@ router.get('/popular', async (req, res, next) => {
                 WHERE 
                     t.deleted_at IS NULL 
                 GROUP BY 
-                    g.title, t.img_path 
+                    g.title, t.img_path , g.idx
                 ORDER BY 
                     post_count DESC
                 LIMIT
@@ -148,7 +148,7 @@ router.get('/popular', async (req, res, next) => {
         result.data.page = page;
         result.data.skip = skip;
         result.data.count = popularGameList.length;
-        result.data.popularGameList = popularGameList;
+        result.data.gameList = popularGameList;
 
         res.status(200).send(result);
     } catch (e) {
