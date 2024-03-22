@@ -8,8 +8,12 @@ const { generateNotification } = require('../modules/generateNotification');
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { requestIdx } = req.body;
+    let poolClient;
+
     try {
-        await pool.query('BEGIN');
+        poolClient = await pool.connect();
+
+        await poolClient.query('BEGIN');
         const updateRequestSQL = `
                                 UPDATE
                                     request
@@ -17,7 +21,7 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
                                     deleted_at = now(), is_confirmed = true
                                 WHERE idx = $1`;
         const updateRequestValues = [requestIdx];
-        await pool.query(updateRequestSQL, updateRequestValues);
+        await poolClient.query(updateRequestSQL, updateRequestValues);
 
         const selectRequestSQL = `
                                 SELECT
@@ -27,16 +31,19 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
                                 WHERE 
                                     idx = $1`;
         const selectRequestValues = [requestIdx];
-        const selectRequestSQLResult = await pool.query(selectRequestSQL, selectRequestValues);
+        const selectRequestSQLResult = await poolClient.query(
+            selectRequestSQL,
+            selectRequestValues
+        );
         const selectedRequest = selectRequestSQLResult.rows[0];
 
         const insertGameSQL = `
-                            INSERT INTO
-                                game(title, user_idx)
-                            VALUES
-                                ( $1, $2 )`;
+                                INSERT INTO
+                                    game(title, user_idx)
+                                VALUES
+                                    ( $1, $2 )`;
         const insertGamevalues = [selectedRequest.title, selectedRequest.user_idx];
-        await pool.query(insertGameSQL, insertGamevalues);
+        await poolClient.query(insertGameSQL, insertGamevalues);
 
         const selectLatestGameSQL = `
                                     SELECT 
@@ -46,7 +53,7 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
                                     ORDER BY 
                                         idx DESC
                                     limit 1`;
-        const selectLatestGameResult = await pool.query(selectLatestGameSQL);
+        const selectLatestGameResult = await poolClient.query(selectLatestGameSQL);
         const latestGameIdx = selectLatestGameResult.rows[0].idx;
 
         const insertThumnailSQL = `
@@ -55,7 +62,7 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
                                 VALUES ( $1 )
                                  `;
         const insertThumnailValues = [latestGameIdx];
-        await pool.query(insertThumnailSQL, insertThumnailValues);
+        await poolClient.query(insertThumnailSQL, insertThumnailValues);
 
         const insertBannerSQL = `
                                 INSERT INTO
@@ -63,13 +70,15 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
                                 VALUES ( $1 )
                                  `;
         const insertBannerValues = [latestGameIdx];
-        await pool.query(insertBannerSQL, insertBannerValues);
+        await poolClient.query(insertBannerSQL, insertBannerValues);
 
         res.status(201).send();
-        await pool.query('COMMIT');
+        await poolClient.query('COMMIT');
     } catch (e) {
-        await pool.query('ROLLBACK');
+        await poolClient.query('ROLLBACK');
         next(e);
+    } finally {
+        poolClient.release();
     }
 });
 //승인요청온 게임목록보기
@@ -98,9 +107,10 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
 //승인요청 거부
 router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, res, next) => {
     const requestIdx = req.params.requestidx;
+    let poolClient;
     try {
-        await pool.query(`BEGIN`);
-
+        poolClient = await pool.connect();
+        await poolClient.query(`BEGIN`);
         const deleteRequestSQL = `
                             UPDATE
                                 request
@@ -109,7 +119,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                             WHERE 
                                 idx = $1`;
         const deleteRequestValues = [requestIdx];
-        await pool.query(deleteRequestSQL, deleteRequestValues);
+        await poolClient.query(deleteRequestSQL, deleteRequestValues);
 
         const selectUserSQL = `
                             SELECT
@@ -119,17 +129,19 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                             WHERE 
                                 idx = $1`;
         const selectUserSQLValues = [requestIdx];
-        const selectUserSQLResult = await pool.query(selectUserSQL, selectUserSQLValues);
+        const selectUserSQLResult = await poolClient.query(selectUserSQL, selectUserSQLValues);
         const selectedUser = selectUserSQLResult.rows[0];
         const userIdx = selectedUser.user_idx;
 
         await generateNotification(3, userIdx);
-        await pool.query(`COMMIT`);
+        await poolClient.query(`COMMIT`);
 
         res.status(200).send();
     } catch (e) {
-        await pool.query(`ROLLBACK`);
+        await poolClient.query(`ROLLBACK`);
         next(e);
+    } finally {
+        poolClient.release();
     }
 });
 
@@ -141,9 +153,11 @@ router.post(
     uploadS3.array('images', 1),
     async (req, res, next) => {
         const gameIdx = req.params.gameidx;
+        let poolClient;
 
         try {
-            await pool.query(`BEGIN`);
+            poolClient = await pool.connect();
+            await poolClient.query(`BEGIN`);
             const location = req.files[0].location;
             const deleteBannerSQL = `
                             UPDATE 
@@ -155,7 +169,7 @@ router.post(
                             AND 
                                 deleted_at IS NULL`;
             const deleteBannerValues = [gameIdx];
-            await pool.query(deleteBannerSQL, deleteBannerValues);
+            await poolClient.query(deleteBannerSQL, deleteBannerValues);
 
             const insertBannerSQL = `
                             INSERT INTO
@@ -163,13 +177,16 @@ router.post(
                             VALUES
                                 ($1, $2)`;
             const insertBannerValues = [gameIdx, location];
-            await pool.query(insertBannerSQL, insertBannerValues);
-            await pool.query(`COMMIT`);
+            await poolClient.query(insertBannerSQL, insertBannerValues);
+            await poolClient.query(`COMMIT`);
 
             res.status(201).send();
         } catch (e) {
-            await pool.query(`ROLLBACK`);
+            console.log('에러발생');
+            await poolClient.query(`ROLLBACK`);
             next(e);
+        } finally {
+            poolClient.release();
         }
     }
 );
@@ -181,12 +198,13 @@ router.post(
     checkAdmin,
     uploadS3.array('images', 1),
     async (req, res, next) => {
-        console.log('실행');
         const gameIdx = req.params.gameidx;
+        let poolClient;
         try {
+            poolClient = await pool.connect();
             const location = req.files[0].location;
 
-            await pool.query(`BEGIN`);
+            await poolClient.query(`BEGIN`);
             const deleteThumnailSQL = `
                                     UPDATE
                                         game_img_thumnail
@@ -197,7 +215,7 @@ router.post(
                                     AND
                                         deleted_at IS NULL`;
             const deleteThumnailValues = [gameIdx];
-            await pool.query(deleteThumnailSQL, deleteThumnailValues);
+            await poolClient.query(deleteThumnailSQL, deleteThumnailValues);
 
             const insertThumnailSQL = `
                                     INSERT INTO
@@ -205,14 +223,16 @@ router.post(
                                     VALUES 
                                         ( $1, $2 )`;
             const insertThumnailVALUES = [gameIdx, location];
-            await pool.query(insertThumnailSQL, insertThumnailVALUES);
+            await poolClient.query(insertThumnailSQL, insertThumnailVALUES);
 
-            await pool.query(`COMMIT`);
+            await poolClient.query(`COMMIT`);
 
             res.status(201).send();
         } catch (e) {
-            await pool.query(`ROLLBACK`);
+            await poolClient.query(`ROLLBACK`);
             next(e);
+        } finally {
+            poolClient.release();
         }
     }
 );

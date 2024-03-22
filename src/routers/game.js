@@ -189,7 +189,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
         let historyList = [];
 
         beforeHistoryList.forEach((element) => {
-            history = [];
+            history = {};
             idx = element.idx;
             timeStamp = element.created_at;
             nickname = element.nickname;
@@ -197,8 +197,8 @@ router.get('/:gameidx/history', async (req, res, next) => {
 
             historyTitle = createdAt + ' ' + nickname;
 
-            history.push(idx);
-            history.push(historyTitle);
+            history.idx = idx;
+            history.title = historyTitle;
 
             historyList.push(history);
         });
@@ -276,8 +276,9 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const { userIdx } = req.decoded;
     const { content } = req.body;
-
+    let poolClient = null;
     try {
+        poolClient = await pool.connect();
         await pool.query(`BEGIN`);
 
         //가장 최신히스토리 삭제
@@ -300,7 +301,7 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
                                             LIMIT
                                                 1)`;
         const updateCurrentSQLValues = [gameIdx];
-        await pool.query(updateCurrentSQL, updateCurrentSQLValues);
+        await poolClient.query(updateCurrentSQL, updateCurrentSQLValues);
         // 새로운 히스토리 등록
         const sql = `
         INSERT INTO 
@@ -308,16 +309,18 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         VALUES 
             ($1, $2, $3)`;
         const values = [gameIdx, userIdx, content];
-        await pool.query(sql, values);
+        await poolClient.query(sql, values);
 
-        await pool.query(`COMMIT`);
+        await poolClient.query(`COMMIT`);
 
         await generateNotification(2, userIdx, gameIdx);
 
         res.status(200).send();
     } catch (e) {
-        await pool.query(`ROLLBACK`);
+        await poolClient.query(`ROLLBACK`);
         next(e);
+    } finally {
+        poolClient.release();
     }
 });
 
