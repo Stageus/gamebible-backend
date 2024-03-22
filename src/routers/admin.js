@@ -143,6 +143,7 @@ router.post(
         const gameIdx = req.params.gameidx;
 
         try {
+            await pool.query(`BEGIN`);
             const location = req.files[0].location;
             const deleteBannerSQL = `
                             UPDATE 
@@ -163,9 +164,11 @@ router.post(
                                 ($1, $2)`;
             const insertBannerValues = [gameIdx, location];
             await pool.query(insertBannerSQL, insertBannerValues);
+            await pool.query(`COMMIT`);
 
             res.status(201).send();
         } catch (e) {
+            await pool.query(`ROLLBACK`);
             next(e);
         }
     }
