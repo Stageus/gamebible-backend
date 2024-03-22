@@ -3,39 +3,39 @@ const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
+const { generateNotification } = require('../modules/generateNotification');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { requestIdx } = req.body;
-    const { userIdx } = req.decoded;
     try {
+        await pool.query('BEGIN');
         const updateRequestSQL = `
-                            UPDATE
-                                request
-                            SET 
-                                deleted_at = now(), is_confirmed = true
-                            WHERE idx = $1`;
+                                UPDATE
+                                    request
+                                SET 
+                                    deleted_at = now(), is_confirmed = true
+                                WHERE idx = $1`;
         const updateRequestValues = [requestIdx];
         await pool.query(updateRequestSQL, updateRequestValues);
 
-        const selectTitleSQL = `
-                            SELECT
-                                title
-                            FROM
-                                request
-                            WHERE 
-                                idx = $1`;
-        const selectTitleValues = [requestIdx];
-        const selectTitleSQLResult = await pool.query(selectTitleSQL, selectTitleValues);
-        const selectResult = selectTitleSQLResult.rows[0];
-        const title = selectResult.title;
+        const selectRequestSQL = `
+                                SELECT
+                                    title, user_idx
+                                FROM
+                                    request
+                                WHERE 
+                                    idx = $1`;
+        const selectRequestValues = [requestIdx];
+        const selectRequestSQLResult = await pool.query(selectRequestSQL, selectRequestValues);
+        const selectedRequest = selectRequestSQLResult.rows[0];
 
         const insertGameSQL = `
-        INSERT INTO
-            game(title, user_idx)
-        VALUES
-            ( $1, $2 )`;
-        const insertGamevalues = [title, userIdx];
+                            INSERT INTO
+                                game(title, user_idx)
+                            VALUES
+                                ( $1, $2 )`;
+        const insertGamevalues = [selectedRequest.title, selectedRequest.user_idx];
         await pool.query(insertGameSQL, insertGamevalues);
 
         const selectLatestGameSQL = `
@@ -66,7 +66,9 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         await pool.query(insertBannerSQL, insertBannerValues);
 
         res.status(201).send();
+        await pool.query('COMMIT');
     } catch (e) {
+        await pool.query('ROLLBACK');
         next(e);
     }
 });
@@ -97,6 +99,8 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
 router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, res, next) => {
     const requestIdx = req.params.requestidx;
     try {
+        await pool.query(`BEGIN`);
+
         const deleteRequestSQL = `
                             UPDATE
                                 request
@@ -106,8 +110,25 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                                 idx = $1`;
         const deleteRequestValues = [requestIdx];
         await pool.query(deleteRequestSQL, deleteRequestValues);
+
+        const selectUserSQL = `
+                            SELECT
+                                user_idx
+                            FROM 
+                                request
+                            WHERE 
+                                idx = $1`;
+        const selectUserSQLValues = [requestIdx];
+        const selectUserSQLResult = await pool.query(selectUserSQL, selectUserSQLValues);
+        const selectedUser = selectUserSQLResult.rows[0];
+        const userIdx = selectedUser.user_idx;
+
+        await generateNotification(3, userIdx);
+        await pool.query(`COMMIT`);
+
         res.status(200).send();
     } catch (e) {
+        await pool.query(`ROLLBACK`);
         next(e);
     }
 });
@@ -122,6 +143,7 @@ router.post(
         const gameIdx = req.params.gameidx;
 
         try {
+            await pool.query(`BEGIN`);
             const location = req.files[0].location;
             const deleteBannerSQL = `
                             UPDATE 
@@ -142,9 +164,11 @@ router.post(
                                 ($1, $2)`;
             const insertBannerValues = [gameIdx, location];
             await pool.query(insertBannerSQL, insertBannerValues);
+            await pool.query(`COMMIT`);
 
             res.status(201).send();
         } catch (e) {
+            await pool.query(`ROLLBACK`);
             next(e);
         }
     }
@@ -160,10 +184,9 @@ router.post(
         console.log('실행');
         const gameIdx = req.params.gameidx;
         try {
-            console.log(req.files);
             const location = req.files[0].location;
-            console.log('location: ', location);
 
+            await pool.query(`BEGIN`);
             const deleteThumnailSQL = `
                                     UPDATE
                                         game_img_thumnail
@@ -184,8 +207,11 @@ router.post(
             const insertThumnailVALUES = [gameIdx, location];
             await pool.query(insertThumnailSQL, insertThumnailVALUES);
 
+            await pool.query(`COMMIT`);
+
             res.status(201).send();
         } catch (e) {
+            await pool.query(`ROLLBACK`);
             next(e);
         }
     }
