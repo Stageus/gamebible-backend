@@ -108,6 +108,21 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                                 idx = $1`;
         const deleteRequestValues = [requestIdx];
         await pool.query(deleteRequestSQL, deleteRequestValues);
+
+        const selectUserSQL = `
+                            SELECT
+                                user_idx
+                            FROM 
+                                request
+                            WHERE 
+                                idx = $1`;
+        const selectUserSQLValues = [requestIdx];
+        const selectUserSQLResult = await pool.query(selectUserSQL, selectUserSQLValues);
+        const selectedUser = selectUserSQLResult.rows[0];
+        const userIdx = selectedUser.user_idx;
+        console.log('selectedUser: ', userIdx);
+        await generateNotification(3, userIdx);
+
         res.status(200).send();
     } catch (e) {
         next(e);
