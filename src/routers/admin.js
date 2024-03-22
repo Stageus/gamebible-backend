@@ -184,10 +184,9 @@ router.post(
         console.log('실행');
         const gameIdx = req.params.gameidx;
         try {
-            console.log(req.files);
             const location = req.files[0].location;
-            console.log('location: ', location);
 
+            await pool.query(`BEGIN`);
             const deleteThumnailSQL = `
                                     UPDATE
                                         game_img_thumnail
@@ -208,8 +207,11 @@ router.post(
             const insertThumnailVALUES = [gameIdx, location];
             await pool.query(insertThumnailSQL, insertThumnailVALUES);
 
+            await pool.query(`COMMIT`);
+
             res.status(201).send();
         } catch (e) {
+            await pool.query(`ROLLBACK`);
             next(e);
         }
     }
