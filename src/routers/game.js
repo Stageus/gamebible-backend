@@ -4,6 +4,8 @@ const { pool } = require('../config/postgres');
 const { query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
+const { generateNotification } = require('../modules/generateNotification');
+
 //게임생성요청
 router.post('/request', checkLogin, async (req, res, next) => {
     const { title } = req.body;
@@ -95,7 +97,6 @@ router.get(
 );
 
 //인기게임목록불러오기(게시글순)
-// 4 -> 3 -> 3 순서로 불러오기 (19 -> 16 -> 16...로수정 )
 router.get('/popular', async (req, res, next) => {
     const { page } = req.query || 1;
 
@@ -277,6 +278,8 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const { content } = req.body;
 
     try {
+        await pool.query(`BEGIN`);
+
         //가장 최신히스토리 삭제
         const updateCurrentSQL = `
                                 UPDATE
@@ -307,8 +310,13 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         const values = [gameIdx, userIdx, content];
         await pool.query(sql, values);
 
+        await pool.query(`COMMIT`);
+
+        await generateNotification(2, userIdx, gameIdx);
+
         res.status(200).send();
     } catch (e) {
+        await pool.query(`ROLLBACK`);
         next(e);
     }
 });
