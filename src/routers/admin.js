@@ -99,6 +99,8 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
 router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, res, next) => {
     const requestIdx = req.params.requestidx;
     try {
+        await pool.query(`BEGIN`);
+
         const deleteRequestSQL = `
                             UPDATE
                                 request
@@ -120,11 +122,13 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
         const selectUserSQLResult = await pool.query(selectUserSQL, selectUserSQLValues);
         const selectedUser = selectUserSQLResult.rows[0];
         const userIdx = selectedUser.user_idx;
-        console.log('selectedUser: ', userIdx);
+
         await generateNotification(3, userIdx);
+        await pool.query(`COMMIT`);
 
         res.status(200).send();
     } catch (e) {
+        await pool.query(`ROLLBACK`);
         next(e);
     }
 });
