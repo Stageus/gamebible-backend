@@ -95,7 +95,6 @@ router.get(
 );
 
 //인기게임목록불러오기(게시글순)
-// 4 -> 3 -> 3 순서로 불러오기 (19 -> 16 -> 16...로수정 )
 router.get('/popular', async (req, res, next) => {
     const { page } = req.query || 1;
 
@@ -277,6 +276,8 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const { content } = req.body;
 
     try {
+        await pool.query(`BEGIN`);
+
         //가장 최신히스토리 삭제
         const updateCurrentSQL = `
                                 UPDATE
@@ -307,8 +308,11 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         const values = [gameIdx, userIdx, content];
         await pool.query(sql, values);
 
+        await pool.query(`COMMIT`);
+
         res.status(200).send();
     } catch (e) {
+        await pool.query(`ROLLBACK`);
         next(e);
     }
 });
