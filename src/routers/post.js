@@ -37,37 +37,38 @@ router.post('/', checkLogin, async (req, res, next) => {
 router.get('/', async (req, res, next) => {
     const gameIdx = req.query.gameidx;
     try {
-        const sql = `
-        SELECT 
-            post.idx,
-            post.title, 
-            post.created_at, 
-            post.user_idx,
-            "user".nickname,
-            "user".deleted_at,
-            -- 조회수
-            (
-                SELECT
-                    COUNT(*)::int
-                FROM
-                    view
-                WHERE
-                    post_idx = post.idx
-            ) AS view
-        FROM 
-            post
-        LEFT JOIN
-            view ON post.idx = view.post_idx
-        JOIN
-            "user" ON post.user_idx = "user".idx
-        WHERE
-            post.game_idx = $1
-        AND 
-            post.deleted_at IS NULL
-        ORDER BY
-            post.idx DESC`;
-        const values = [gameIdx];
-        const data = await pool.query(sql, values);
+        const data = await pool.query(
+            `
+            SELECT 
+                post.idx,
+                post.title, 
+                post.created_at, 
+                post.user_idx,
+                "user".nickname,
+                "user".deleted_at,
+                -- 조회수
+                (
+                    SELECT
+                        COUNT(*)::int
+                    FROM
+                        view
+                    WHERE
+                        post_idx = post.idx
+                ) AS view
+            FROM 
+                post
+            LEFT JOIN
+                view ON post.idx = view.post_idx
+            JOIN
+                "user" ON post.user_idx = "user".idx
+            WHERE
+                post.game_idx = $1
+            AND 
+                post.deleted_at IS NULL
+            ORDER BY
+                post.idx DESC`,
+            gameIdx
+        );
         const result = data.rows;
         console.log(result);
         res.status(200).send({
@@ -82,39 +83,37 @@ router.get('/', async (req, res, next) => {
 //페이지네이션
 router.get('/search', async (req, res, next) => {
     const search = req.query.search;
-    console.log('실행');
-    console.log(search);
     try {
-        const sql = `
-        SELECT 
-            post.title, 
-            post.created_at, 
-            "user".nickname,
-            -- 조회수
-            (
-                SELECT
-                    COUNT(*)::int
-                FROM
-                    view
-                WHERE
-                    post_idx = post.idx 
-            ) AS view
-        FROM 
-            post 
-        LEFT JOIN
-            view ON post.idx = view.post_idx
-        JOIN 
-            "user" ON post.user_idx = "user".idx
-        WHERE
-            post.title LIKE '%${search}%'
-        AND 
-            post.deleted_at IS NULL
-        GROUP BY
-                post.idx, "user".nickname
-        ORDER BY
-            post.idx DESC`;
-        console.log(req.query.search);
-        const data = await pool.query(sql);
+        const data = await pool.query(
+            `
+            SELECT 
+                post.title, 
+                post.created_at, 
+                "user".nickname,
+                -- 조회수
+                (
+                    SELECT
+                        COUNT(*)::int
+                    FROM
+                        view
+                    WHERE
+                        post_idx = post.idx 
+                ) AS view
+            FROM 
+                post 
+            LEFT JOIN
+                view ON post.idx = view.post_idx
+            JOIN 
+                "user" ON post.user_idx = "user".idx
+            WHERE
+                post.title LIKE '%${search}%'
+            AND 
+                post.deleted_at IS NULL
+            GROUP BY
+                    post.idx, "user".nickname
+            ORDER BY
+                post.idx DESC`
+        );
         res.status(200).send({
             data: data.rows,
         });
@@ -127,31 +126,32 @@ router.get('/search', async (req, res, next) => {
 router.get('/:postidx', checkLogin, async (req, res, next) => {
     const postIdx = req.params.postidx;
     try {
-        const sql = `
-        SELECT 
-            post.idx,
-            post.user_idx,
-            post.*,
-            "user".nickname,
-            -- 조회수 불러오기
-            (
-                SELECT
-                    COUNT(*)::int
-                FROM
-                    view
-                WHERE
-                    post_idx = post.idx 
-            ) AS view
-        FROM 
-            post
-        JOIN
-            "user" ON post.user_idx = "user".idx
-        WHERE
-            post.idx = $1
-        AND 
-            post.deleted_at IS NULL`;
-        const values = [postIdx];
-        const data = await pool.query(sql, values);
+        const data = await pool.query(
+            `
+            SELECT 
+                post.idx,
+                post.user_idx,
+                post.*,
+                "user".nickname,
+                -- 조회수 불러오기
+                (
+                    SELECT
+                        COUNT(*)::int
+                    FROM
+                        view
+                    WHERE
+                        post_idx = post.idx 
+                ) AS view
+            FROM 
+                post
+            JOIN
+                "user" ON post.user_idx = "user".idx
+            WHERE
+                post.idx = $1
+            AND 
+                post.deleted_at IS NULL`,
+            postIdx
+        );
         const result = data.rows;
         res.status(200).send({
             data: result,
@@ -166,16 +166,17 @@ router.delete('/:postidx', checkLogin, async (req, res, next) => {
     const postIdx = req.params.postidx;
     const userIdx = req.decoded.userIdx;
     try {
-        const sql = `
-        UPDATE post
-        SET
-            deleted_at = now()
-        WHERE
-            idx = $1
-        AND 
-            user_idx = $2`;
-        const values = [postIdx, userIdx];
-        await pool.query(sql, values);
+        await pool.query(
+            `
+            UPDATE post
+            SET
+                deleted_at = now()
+            WHERE
+                idx = $1
+            AND 
+                user_idx = $2`,
+            [postIdx, userIdx]
+        );
         res.status(200).send();
     } catch (err) {
         next(err);
