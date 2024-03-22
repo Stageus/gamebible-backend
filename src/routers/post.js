@@ -12,20 +12,19 @@ router.post('/', checkLogin, async (req, res, next) => {
     const gameIdx = req.query.gameidx;
     const userIdx = req.decoded.userIdx;
     try {
-        const sql = `
-        INSERT INTO 
-            post(
-                user_idx,
-                game_idx,
-                title,
-                content
+        await pool.query(
+            `
+            INSERT INTO
+                post(
+                    user_idx,
+                    game_idx,
+                    title,
+                    content
                 )
             VALUES
-                ($1, $2, $3, $4)
-            RETURNING
-                idx`;
-        const values = [userIdx, gameIdx, title, content];
-        const result = await pool.query(sql, values);
+                ($1, $2, $3, $4)`,
+            [userIdx, gameIdx, title, content]
+        );
         res.status(201).send();
     } catch (err) {
         next(err);
