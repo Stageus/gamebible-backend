@@ -82,8 +82,10 @@ router.get('/', async (req, res, next) => {
 //게시글 검색하기
 //페이지네이션
 router.get('/search', async (req, res, next) => {
-    const search = req.query.search;
+    const { page, search } = req.query;
     try {
+        //20개씩 불러오기
+        const offset = (page - 1) * 20;
         const data = await pool.query(
             `
             SELECT 
@@ -109,13 +111,20 @@ router.get('/search', async (req, res, next) => {
                 post.title LIKE '%${search}%'
             AND 
                 post.deleted_at IS NULL
-            GROUP BY
-                    post.idx, "user".nickname
             ORDER BY
-                post.idx DESC`
+                post.idx DESC
+            LIMIT
+                20
+            OFFSET
+                $1`,
+            [offset]
         );
+        const length = data.rows.length;
         res.status(200).send({
             data: data.rows,
+            page,
+            offset,
+            length,
         });
     } catch (err) {
         return next(err);
