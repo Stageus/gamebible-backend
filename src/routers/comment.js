@@ -30,7 +30,7 @@ router.post('/', checkLogin, async (req, res, next) => {
 });
 
 //댓글 보기
-//페이지네이션
+//무한스크롤
 router.get('/', checkLogin, async (req, res, next) => {
     const postIdx = req.query.postidx;
     try {
