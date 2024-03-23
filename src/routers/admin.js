@@ -14,63 +14,71 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
         poolClient = await pool.connect();
 
         await poolClient.query('BEGIN');
-        const updateRequestSQL = `
-                                UPDATE
-                                    request
-                                SET 
-                                    deleted_at = now(), is_confirmed = true
-                                WHERE idx = $1`;
-        const updateRequestValues = [requestIdx];
-        await poolClient.query(updateRequestSQL, updateRequestValues);
 
-        const selectRequestSQL = `
-                                SELECT
-                                    title, user_idx
-                                FROM
-                                    request
-                                WHERE 
-                                    idx = $1`;
-        const selectRequestValues = [requestIdx];
+        //요청삭제
+        await poolClient.query(
+            `UPDATE
+                request
+            SET 
+                deleted_at = now(), is_confirmed = true
+            WHERE 
+                idx = $1`,
+            [requestIdx]
+        );
+
+        //제목, 유저idx 불러오기
         const selectRequestSQLResult = await poolClient.query(
-            selectRequestSQL,
-            selectRequestValues
+            `SELECT
+                title, user_idx
+            FROM
+                request
+            WHERE 
+                idx = $1`,
+            [requestIdx]
         );
         const selectedRequest = selectRequestSQLResult.rows[0];
 
-        const insertGameSQL = `
-                                INSERT INTO
-                                    game(title, user_idx)
-                                VALUES
-                                    ( $1, $2 )`;
-        const insertGamevalues = [selectedRequest.title, selectedRequest.user_idx];
-        await poolClient.query(insertGameSQL, insertGamevalues);
+        await poolClient.query(
+            `INSERT INTO
+                game(title, user_idx)
+            VALUES
+                ( $1, $2 )`,
+            [selectedRequest.title, selectedRequest.user_idx]
+        );
 
-        const selectLatestGameSQL = `
-                                    SELECT 
-                                        idx
-                                    FROM
-                                        game
-                                    ORDER BY 
-                                        idx DESC
-                                    limit 1`;
-        const selectLatestGameResult = await poolClient.query(selectLatestGameSQL);
+        const selectLatestGameResult = await poolClient.query(
+            `SELECT 
+                idx
+            FROM
+                game
+            ORDER BY 
+                idx DESC
+            limit 1`
+        );
         const latestGameIdx = selectLatestGameResult.rows[0].idx;
 
-        const insertThumnailSQL = `
-                                INSERT INTO
-                                    game_img_thumnail(game_idx)
-                                VALUES ( $1 )
-                                 `;
-        const insertThumnailValues = [latestGameIdx];
-        await poolClient.query(insertThumnailSQL, insertThumnailValues);
+        await poolClient.query(
+            `INSERT INTO 
+                history(game_idx, user_idx)
+            VALUES( $1, $2 )`,
+            [latestGameIdx, selectedRequest.user_idx]
+        );
 
-        const insertBannerSQL = `
-                                INSERT INTO
-                                    game_img_banner(game_idx)
-                                VALUES ( $1 )
-                                 `;
-        const insertBannerValues = [latestGameIdx];
-        await poolClient.query(insertBannerSQL, insertBannerValues);
+        //게임 썸네일, 배너이미지 등록
+        await poolClient.query(
+            `INSERT INTO
+            game_img_thumnail(game_idx)
+            VALUES ( $1 )`,
+            [latestGameIdx]
+        );
+
+        await poolClient.query(
+            `
+            INSERT INTO
+                game_img_banner(game_idx)
+            VALUES ( $1 )`,
+            [latestGameIdx]
+        );
 
         res.status(201).send();
         await poolClient.query('COMMIT');
