@@ -41,7 +41,8 @@ router.get('/', checkLogin, async (req, res, next) => {
             comment.idx,
             comment.content,
             comment.created_at,
-            "user".nickname
+            "user".nickname,
+            "user".deleted_at
         FROM 
             comment
         JOIN
