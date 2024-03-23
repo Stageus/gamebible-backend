@@ -11,17 +11,18 @@ router.post('/', checkLogin, async (req, res, next) => {
     const postIdx = req.query.postidx;
     try {
         const userIdx = req.decoded.userIdx;
-        const sql = `
-            INSERT INTO
-                comment(
-                    user_idx,
-                    post_idx,
-                    content
-                )
-            VALUES
-                ($1, $2, $3)`;
-        const values = [userIdx, postIdx, content];
-        await pool.query(sql, values);
+        await pool.query(
+            `
+        INSERT INTO
+            comment(
+                user_idx,
+                post_idx,
+                content
+            )
+        VALUES
+            ($1, $2, $3)`,
+            [userIdx, postIdx, content]
+        );
         res.status(201).send();
     } catch (err) {
         next(err);
@@ -33,7 +34,8 @@ router.post('/', checkLogin, async (req, res, next) => {
 router.get('/', checkLogin, async (req, res, next) => {
     const postIdx = req.query.postidx;
     try {
-        const sql = `
+        const data = await pool.query(
+            `
         SELECT
             comment.user_idx,
             comment.idx,
@@ -49,9 +51,9 @@ router.get('/', checkLogin, async (req, res, next) => {
         AND 
             comment.deleted_at IS NULL
         ORDER BY
-            comment.idx DESC`;
-        const values = [postIdx];
-        const data = await pool.query(sql, values);
+            comment.idx DESC`,
+            [postIdx]
+        );
         res.status(201).send({
             data: data.rows,
         });
@@ -65,16 +67,17 @@ router.delete('/:commentidx', checkLogin, async (req, res, next) => {
     const commentIdx = req.params.commentidx;
     try {
         const userIdx = req.decoded.userIdx;
-        const sql = `
+        await pool.query(
+            `
         UPDATE comment
         SET
             deleted_at = now()
         WHERE
             idx = $1
         AND 
-            user_idx = $2`;
-        const values = [commentIdx, userIdx];
-        await pool.query(sql, values);
+            user_idx = $2`,
+            [commentIdx, userIdx]
+        );
         res.status(200).send();
     } catch (err) {
         next(err);
