@@ -282,41 +282,60 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         await pool.query(`BEGIN`);
 
         //가장 최신히스토리 삭제
-        const updateCurrentSQL = `
-                                UPDATE
-                                    history
-                                SET 
-                                    deleted_at = now()                                    
-                                WHERE
-                                    game_idx = $1
-                                AND
-                                    idx = (SELECT
-                                                idx
-                                            FROM 
-                                                history
-                                            WHERE
-                                                game_idx = $1
-                                            ORDER BY
-                                                created_at DESC
-                                            LIMIT
-                                                1)`;
-        const updateCurrentSQLValues = [gameIdx];
-        await poolClient.query(updateCurrentSQL, updateCurrentSQLValues);
+        await poolClient.query(
+            `UPDATE
+                history
+            SET 
+                deleted_at = now()                                    
+            WHERE
+                game_idx = $1
+            AND
+                idx = (SELECT
+                            idx
+                        FROM 
+                            history
+                        WHERE
+                            game_idx = $1
+                        ORDER BY
+                            created_at DESC
+                        LIMIT
+                            1)`,
+            [gameIdx]
+        );
+
+        //기존 게임수정자들 알림
+        const historyUserSQLResult = await poolClient.query(
+            `SELECT 
+                user_idx
+            FROM
+                history
+            WHERE 
+                game_idx = $1
+            GROUP BY
+                game_idx, user_idx`,
+            [gameIdx]
+        );
+        let historyUserList = historyUserSQLResult.rows;
+        console.log('historyUserList: ', historyUserList);
+
+        for (let index = 0; index < historyUserList.length; index++) {
+            await generateNotification(poolClient, 2, historyUserList[index].user_idx, gameIdx);
+        }
+
         // 새로운 히스토리 등록
-        const sql = `
-        INSERT INTO 
-            history(game_idx, user_idx, content)
-        VALUES 
-            ($1, $2, $3)`;
-        const values = [gameIdx, userIdx, content];
-        await poolClient.query(sql, values);
+        await poolClient.query(
+            `INSERT INTO 
+                history(game_idx, user_idx, content)
+            VALUES 
+                ($1, $2, $3)`,
+            [gameIdx, userIdx, content]
+        );
 
         await poolClient.query(`COMMIT`);
 
-        await generateNotification(2, userIdx, gameIdx);
-
         res.status(200).send();
     } catch (e) {
+        console.log('에러발생');
         await poolClient.query(`ROLLBACK`);
         next(e);
     } finally {
