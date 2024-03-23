@@ -67,7 +67,7 @@ router.get('/', async (req, res, next) => {
                 post.deleted_at IS NULL
             ORDER BY
                 post.idx DESC`,
-            gameIdx
+            [gameIdx]
         );
         const result = data.rows;
         console.log(result);
@@ -125,8 +125,26 @@ router.get('/search', async (req, res, next) => {
 //게시글 상세보기
 router.get('/:postidx', checkLogin, async (req, res, next) => {
     const postIdx = req.params.postidx;
+    let poolClient;
     try {
-        const data = await pool.query(
+        const userIdx = req.decoded.userIdx;
+        poolClient = await pool.connect();
+        await poolClient.query('BEGIN');
+
+        await poolClient.query(
+            `
+            -- 조회수 반영하기
+            INSERT INTO
+                view(
+                    post_idx,
+                    user_idx
+                )
+            VALUES
+                ($1, $2)`,
+            [postIdx, userIdx]
+        );
+
+        const data = await poolClient.query(
             `
             SELECT 
                 post.idx,
@@ -150,14 +168,18 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.idx = $1
             AND 
                 post.deleted_at IS NULL`,
-            postIdx
+            [postIdx]
         );
         const result = data.rows;
         res.status(200).send({
             data: result,
         });
+        await poolClient.query('COMMIT');
     } catch (err) {
+        await poolClient.query('ROLLBACK');
         next(err);
+    } finally {
+        poolClient.release();
     }
 });
 
