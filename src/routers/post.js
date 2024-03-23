@@ -33,10 +33,13 @@ router.post('/', checkLogin, async (req, res, next) => {
 
 //게시판 보기 (게시글 목록보기)
 //무한스크롤
-//deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자임을 구분하도록
+//deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자
 router.get('/', async (req, res, next) => {
+    const page = req.query.page;
     const gameIdx = req.query.gameidx;
     try {
+        //20개씩 불러오기
+        const offset = (page - 1) * 20;
         const data = await pool.query(
             `
             SELECT 
@@ -66,8 +69,12 @@ router.get('/', async (req, res, next) => {
             AND 
                 post.deleted_at IS NULL
             ORDER BY
-                post.idx DESC`,
-            [gameIdx]
+                post.idx DESC
+            LIMIT
+                20
+            OFFSET
+                $2`,
+            [gameIdx, offset]
         );
         const result = data.rows;
         console.log(result);
