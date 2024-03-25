@@ -7,8 +7,8 @@ const { pool } = require('../config/postgres.js');
 const checkLogin = require('../middlewares/checkLogin.js');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
-const changePwEmail = require('../modules/changePwEmail');
-const deleteCode = require('../modules/deleteCode');
+const changePwEmail = require('../modules/sendChangePwEmail.js');
+const deleteCode = require('../modules/deleteEmailCode.js');
 const { uploadS3 } = require('../middlewares/upload');
 const { handleValidationErrors } = require('../middlewares/validator');
 
@@ -519,7 +519,7 @@ router.delete('/', checkLogin, async (req, res, next) => {
     }
 });
 
-// 본인의 알람 목록 출력하는 API
+//알람출력
 router.get('/notification', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
@@ -534,11 +534,29 @@ router.get('/notification', checkLogin, async (req, res, next) => {
             user_idx = $1`;
         const notifications = await pool.query(getNotificationsQuery, [userIdx]);
 
+        // 알람이 없는 경우 먼저 처리
         if (!notifications.rows || notifications.rows.length === 0) {
-            return res.status(400).send(createResult(userIdx + '번의 알람이 없습니다.'));
+            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
-        res.status(200).send(notifications.rows);
+        // 알람 타입의 내용 조회를 위한 알람 타입 ID 추출
+        const notificationTypeId = notifications.rows[0].type;
+        const getNotificationContentQuery = `
+        SELECT
+            content
+        FROM
+            notification_type
+        WHERE 
+            idx = $1`;
+        const notificationContent = await pool.query(getNotificationContentQuery, [
+            notificationTypeId,
+        ]);
+        const notificationMessage =
+            notificationContent.rows.length > 0
+                ? notificationContent.rows[0].content
+                : '알람 내용이 없습니다.';
+
+        res.status(200).send(notificationMessage);
     } catch (error) {
         next(error);
     }
