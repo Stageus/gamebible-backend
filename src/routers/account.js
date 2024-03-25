@@ -491,4 +491,29 @@ router.delete('/', checkLogin, async (req, res, next) => {
     }
 });
 
+// 본인의 알람 목록 출력하는 API
+router.get('/notification', checkLogin, async (req, res, next) => {
+    try {
+        const { userIdx } = req.decoded;
+
+        // 사용자의 알람 조회 쿼리 실행
+        const getNotificationsQuery = `
+        SELECT
+            * 
+        FROM
+            notification
+        WHERE 
+            user_idx = $1`;
+        const notifications = await pool.query(getNotificationsQuery, [userIdx]);
+
+        if (!notifications.rows || notifications.rows.length === 0) {
+            return res.status(400).send(createResult(userIdx + '번의 알람이 없습니다.'));
+        }
+
+        res.status(200).send(notifications.rows);
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
