@@ -375,7 +375,6 @@ router.put(
     async (req, res, next) => {
         const { pw } = req.body;
         const { idx } = req.decoded;
-        console.log(idx);
 
         try {
             const deletePwSql = `
