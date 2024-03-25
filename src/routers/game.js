@@ -276,51 +276,34 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const { userIdx } = req.decoded;
     const { content } = req.body;
+
     let poolClient = null;
     try {
         poolClient = await pool.connect();
-        await pool.query(`BEGIN`);
-
-        //가장 최신히스토리 삭제
-        await poolClient.query(
-            `UPDATE
-                history
-            SET 
-                deleted_at = now()                                    
-            WHERE
-                game_idx = $1
-            AND
-                idx = (SELECT
-                            idx
-                        FROM 
-                            history
-                        WHERE
-                            game_idx = $1
-                        ORDER BY
-                            created_at DESC
-                        LIMIT
-                            1)`,
-            [gameIdx]
-        );
+        await poolClient.query(`BEGIN`);
 
         //기존 게임수정자들 알림
         const historyUserSQLResult = await poolClient.query(
-            `SELECT 
+            `SELECT DISTINCT 
                 user_idx
             FROM
                 history
             WHERE 
-                game_idx = $1
-            GROUP BY
-                game_idx, user_idx`,
+                game_idx = $1`,
             [gameIdx]
         );
         let historyUserList = historyUserSQLResult.rows;
         console.log('historyUserList: ', historyUserList);
 
-        for (let index = 0; index < historyUserList.length; index++) {
-            await generateNotification(poolClient, 2, historyUserList[index].user_idx, gameIdx);
+        for (let i = 0; i < historyUserList.length; i++) {
+            await generateNotification({
+                conn: poolClient,
+                type: 'MODIFY_GAME',
+                gameIdx: gameIdx,
+                toUserIdx: historyUserList[i].user_idx,
+            });
         }
+        console.log('함수끝');
 
         // 새로운 히스토리 등록
         await poolClient.query(
@@ -339,7 +322,7 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         await poolClient.query(`ROLLBACK`);
         next(e);
     } finally {
-        poolClient.release();
+        if (poolClient) poolClient.release();
     }
 });
 
