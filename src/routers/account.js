@@ -539,7 +539,6 @@ router.get('/notification', checkLogin, async (req, res, next) => {
             return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
-        // 알람 타입의 내용 조회를 위한 알람 타입 ID 추출
         const notificationTypeId = notifications.rows[0].type;
         const getNotificationContentQuery = `
         SELECT
@@ -557,6 +556,41 @@ router.get('/notification', checkLogin, async (req, res, next) => {
                 : '알람 내용이 없습니다.';
 
         res.status(200).send(notificationMessage);
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.delete('/notification/:notificationId', checkLogin, async (req, res, next) => {
+    try {
+        const { userIdx } = req.decoded; // 사용자 ID
+        const { notificationId } = req.params; // URL에서 알람 ID 추출
+
+        // 알람이 사용자의 것인지 확인하는 쿼리
+        const checkNotificationQuery = `
+        SELECT
+            *
+        FROM
+            notification
+        WHERE
+            idx = $1 AND user_idx = $2`;
+        const checkResult = await pool.query(checkNotificationQuery, [notificationId, userIdx]);
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).send('해당 알람을 찾을 수 없거나 삭제할 권한이 없습니다.');
+        }
+
+        // 알람 삭제 쿼리 실행
+        const deleteNotificationQuery = `
+        UPDATE
+            notification
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        await pool.query(deleteNotificationQuery, [notificationId]);
+
+        res.status(200).send(notificationId + '번 알람이 삭제되었습니다.');
     } catch (error) {
         next(error);
     }
