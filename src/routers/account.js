@@ -141,7 +141,8 @@ router.post(
                     id, 
                     pw
                     )
-            VALUES ($1, $2, $3)`;
+            VALUES ($1, $2, $3)
+            RETURNING *`;
             const accountValues = [userIdx, id, pw];
             const accountResult = await pool.query(insertAccountSql, accountValues);
             if (accountResult.rows.length === 0) {
@@ -433,49 +434,20 @@ router.put(
         const { userIdx } = req.decoded;
         const { nickname, email } = req.body;
         try {
-            const deleteInfoSql = `
-        UPDATE
-            "user" 
-        SET
-            deleted_at = now()
-        WHERE
-            idx = $1`;
-            const result = await pool.query(deleteInfoSql, [userIdx]);
-            console.log(userIdx);
-
-            if (result.rowCount == 0) {
-                return res.status(400).send('softdelete오류');
-            }
-
             const newInfoSql = `
-        INSERT INTO 
-            "user" (
-                is_admin,
-                nickname, 
-                email
-                )
-        SELECT 
-            is_admin, $2, $3
-        FROM 
-            "user"
-        WHERE
-            idx = $1
-            RETURNING *`;
+            UPDATE "user"
+            SET
+                nickname = $2,
+                email = $3
+            WHERE
+                idx = $1
+            RETURNING *;
+            `;
 
             const userInfo = await pool.query(newInfoSql, [userIdx, nickname, email]);
-
-            const user = userInfo.rows[0];
-
-            const changeInfoSql = `
-        INSERT INTO
-            account_local(id, pw, user_idx)
-        SELECT
-            id,pw,$2
-        FROM
-            account_local
-        WHERE
-            user_idx=$1`;
-            await pool.query(changeInfoSql, [userIdx, user.idx]);
+            if (userInfo.rows.length === 0) {
+                return res.status(401).send({ message: '내 정보 수정 실패' });
+            }
 
             return res.status(200).send('내 정보 수정 성공');
         } catch (error) {
