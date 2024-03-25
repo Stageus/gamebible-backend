@@ -4,6 +4,8 @@ const { pool } = require('../config/postgres');
 const { query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
+const { generateNotification } = require('../modules/generateNotification');
+
 //게임생성요청
 router.post('/request', checkLogin, async (req, res, next) => {
     const { title } = req.body;
@@ -25,11 +27,12 @@ router.post('/request', checkLogin, async (req, res, next) => {
 
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
-    let page = req.query.page;
+    let { page } = req.query;
     const result = {
         data: {},
     };
-    const skip = page * 3 - 3;
+    //20개씩 불러오기
+    const skip = (page - 1) * 20;
 
     try {
         const sql = `
@@ -42,7 +45,7 @@ router.get('/', async (req, res, next) => {
         ORDER BY 
             title ASC
         LIMIT 
-            3
+            20
         OFFSET
             $1`;
         const values = [skip];
@@ -51,6 +54,7 @@ router.get('/', async (req, res, next) => {
         const gameList = gameSelectSQLResult.rows;
         result.data.page = page;
         result.data.skip = skip;
+        result.data.count = gameList.length;
         result.data.gameList = gameList;
 
         res.status(200).send(result);
@@ -93,18 +97,19 @@ router.get(
 );
 
 //인기게임목록불러오기(게시글순)
-// 4 -> 3 -> 3 순서로 불러오기 (19 -> 16 -> 16...로수정 )
 router.get('/popular', async (req, res, next) => {
-    const page = req.query.page || 1;
+    const { page } = req.query || 1;
 
     let skip;
     let count;
     if (page == 1) {
-        count = 3;
+        //1페이지는 19개 불러오기
+        count = 19;
         skip = 0;
     } else {
-        count = 4;
-        skip = (page - 2) * 4 + 3;
+        //2페이지부터는 16개씩불러오기
+        count = 16;
+        skip = (page - 1) * 16 + 3;
     }
 
     const result = {
@@ -114,7 +119,7 @@ router.get('/popular', async (req, res, next) => {
     try {
         const sql = `
                 SELECT
-                    g.title, count(*) AS post_count ,t.img_path  
+                    g.idx, g.title, count(*) AS post_count ,t.img_path  
                 FROM 
                     game g 
                 JOIN 
@@ -128,23 +133,22 @@ router.get('/popular', async (req, res, next) => {
                 WHERE 
                     t.deleted_at IS NULL 
                 GROUP BY 
-                    g.title, t.img_path 
+                    g.title, t.img_path , g.idx
                 ORDER BY 
                     post_count DESC
                 LIMIT
                     $1
                 OFFSET
-                 $2`;
+                    $2`;
 
         const values = [count, skip];
         const popularSelectSQLResult = await pool.query(sql, values);
-        console.log('popularSelectSQLResult: ', popularSelectSQLResult);
         const popularGameList = popularSelectSQLResult.rows;
 
         result.data.page = page;
         result.data.skip = skip;
-        result.data.count = count;
-        result.data.popularGameList = popularGameList;
+        result.data.count = popularGameList.length;
+        result.data.gameList = popularGameList;
 
         res.status(200).send(result);
     } catch (e) {
@@ -185,7 +189,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
         let historyList = [];
 
         beforeHistoryList.forEach((element) => {
-            history = [];
+            history = {};
             idx = element.idx;
             timeStamp = element.created_at;
             nickname = element.nickname;
@@ -193,14 +197,12 @@ router.get('/:gameidx/history', async (req, res, next) => {
 
             historyTitle = createdAt + ' ' + nickname;
 
-            history.push(idx);
-            history.push(historyTitle);
+            history.idx = idx;
+            history.title = historyTitle;
 
             historyList.push(history);
         });
         result.data = historyList;
-
-        console.log(result.data);
 
         res.status(200).send(result);
     } catch (e) {
@@ -274,41 +276,70 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const { userIdx } = req.decoded;
     const { content } = req.body;
-
+    let poolClient = null;
     try {
+        poolClient = await pool.connect();
+        await pool.query(`BEGIN`);
+
         //가장 최신히스토리 삭제
-        const updateCurrentSQL = `
-                                UPDATE
-                                    history
-                                SET 
-                                    deleted_at = now()                                    
-                                WHERE
-                                    game_idx = $1
-                                AND
-                                    idx = (SELECT
-                                                idx
-                                            FROM 
-                                                history
-                                            WHERE
-                                                game_idx = $1
-                                            ORDER BY
-                                                created_at DESC
-                                            LIMIT
-                                                1)`;
-        const updateCurrentSQLValues = [gameIdx];
-        await pool.query(updateCurrentSQL, updateCurrentSQLValues);
+        await poolClient.query(
+            `UPDATE
+                history
+            SET 
+                deleted_at = now()                                    
+            WHERE
+                game_idx = $1
+            AND
+                idx = (SELECT
+                            idx
+                        FROM 
+                            history
+                        WHERE
+                            game_idx = $1
+                        ORDER BY
+                            created_at DESC
+                        LIMIT
+                            1)`,
+            [gameIdx]
+        );
+
+        //기존 게임수정자들 알림
+        const historyUserSQLResult = await poolClient.query(
+            `SELECT 
+                user_idx
+            FROM
+                history
+            WHERE 
+                game_idx = $1
+            GROUP BY
+                game_idx, user_idx`,
+            [gameIdx]
+        );
+        let historyUserList = historyUserSQLResult.rows;
+        console.log('historyUserList: ', historyUserList);
+
+        for (let index = 0; index < historyUserList.length; index++) {
+            await generateNotification(poolClient, 2, historyUserList[index].user_idx, gameIdx);
+        }
+
         // 새로운 히스토리 등록
-        const sql = `
-        INSERT INTO 
-            history(game_idx, user_idx, content)
-        VALUES 
-            ($1, $2, $3)`;
-        const values = [gameIdx, userIdx, content];
-        await pool.query(sql, values);
+        await poolClient.query(
+            `INSERT INTO 
+                history(game_idx, user_idx, content)
+            VALUES 
+                ($1, $2, $3)`,
+            [gameIdx, userIdx, content]
+        );
+
+        await poolClient.query(`COMMIT`);
 
         res.status(200).send();
     } catch (e) {
+        console.log('에러발생');
+        await poolClient.query(`ROLLBACK`);
         next(e);
+    } finally {
+        poolClient.release();
     }
 });
 
