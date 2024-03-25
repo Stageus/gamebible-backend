@@ -295,7 +295,7 @@ router.post('/email/auth', async (req, res, next) => {
         if (queryResult.rows.length == 0) {
             res.status(400).send('잘못된 인증 코드입니다.');
         }
-        res.status(400).send('잘못된 인증 코드입니다.');
+        res.status(200).send('이메일 전송 성공');
     } catch (e) {
         next(e);
     }
@@ -519,12 +519,12 @@ router.delete('/', checkLogin, async (req, res, next) => {
     }
 });
 
-//알람출력
+//알람 출력
 router.get('/notification', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
 
-        // 사용자의 알람 조회 쿼리 실행
+        // 사용자의 알람 조회
         const getNotificationsQuery = `
         SELECT
             * 
@@ -534,33 +534,32 @@ router.get('/notification', checkLogin, async (req, res, next) => {
             user_idx = $1`;
         const notifications = await pool.query(getNotificationsQuery, [userIdx]);
 
-        // 알람이 없는 경우 먼저 처리
         if (!notifications.rows || notifications.rows.length === 0) {
             return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
-        const notificationTypeId = notifications.rows[0].type;
-        const getNotificationContentQuery = `
-        SELECT
-            content
-        FROM
-            notification_type
-        WHERE 
-            idx = $1`;
-        const notificationContent = await pool.query(getNotificationContentQuery, [
-            notificationTypeId,
-        ]);
-        const notificationMessage =
-            notificationContent.rows.length > 0
-                ? notificationContent.rows[0].content
-                : '알람 내용이 없습니다.';
+        // 알람 타입에 따른 추가 정보 조회
+        for (let notification of notifications.rows) {
+            if (notification.type === 1) {
+                // post 테이블 조회
+                const postQuery = `SELECT title FROM post WHERE idx = $1`;
+                const postResult = await pool.query(postQuery, [notification.post_idx]);
+                notification.postInfo = postResult.rows[0];
+            } else if (notification.type === 2 || notification.type === 3) {
+                // game 테이블 조회
+                const gameQuery = `SELECT title FROM game WHERE idx = $1`;
+                const gameResult = await pool.query(gameQuery, [notification.game_idx]);
+                notification.gameInfo = gameResult.rows[0];
+            }
+        }
 
-        res.status(200).send(notificationMessage);
+        res.status(200).send(notifications.rows);
     } catch (error) {
         next(error);
     }
 });
 
+//알람 삭제
 router.delete('/notification/:notificationId', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded; // 사용자 ID
