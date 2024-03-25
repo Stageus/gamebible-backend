@@ -293,7 +293,6 @@ router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
             [gameIdx]
         );
         let historyUserList = historyUserSQLResult.rows;
-        console.log('historyUserList: ', historyUserList);
 
         for (let i = 0; i < historyUserList.length; i++) {
             await generateNotification({
