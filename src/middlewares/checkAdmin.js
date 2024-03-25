@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+/**
+ * @type {import('express').RequestHandler}
+ */
 const checkAdmin = async (req, res, next) => {
     let { authorization } = req.headers;
     authorization = authorization.split(' ')[1];
