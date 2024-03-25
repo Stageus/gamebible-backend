@@ -262,6 +262,7 @@ router.post(
                     )
             VALUES
                 ($1, $2)
+            RETURNING *
             `;
                 const codeValues = [email, verificationCode];
                 const codeResults = await pool.query(insertQuery, codeValues);
