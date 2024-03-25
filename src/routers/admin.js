@@ -91,24 +91,21 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
 });
 //승인요청온 게임목록보기
 router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
-    const result = {
-        data: {},
-    };
     try {
-        const selectRequestSQL = `
-                            SELECT
-                                *
-                            FROM
-                                request
-                            WHERE 
-                                deleted_at IS NULL`;
-        const selectRequestSQLResult = await pool.query(selectRequestSQL);
+        const selectRequestSQLResult = await pool.query(`
+        SELECT
+            *
+        FROM
+            request
+        WHERE 
+            deleted_at IS NULL`);
         const requestList = selectRequestSQLResult.rows;
 
-        result.data = requestList;
-        res.status(200).send(result);
-    } catch (e) {
-        next(e);
+        res.status(200).send({
+            data: requestList,
+        });
+    } catch (err) {
+        return next(err);
     }
 });
 
@@ -119,29 +116,54 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
     try {
         poolClient = await pool.connect();
         await poolClient.query(`BEGIN`);
-        const deleteRequestSQL = `
-                            UPDATE
-                                request
-                            SET 
-                                deleted_at = now(), is_confirmed = false
-                            WHERE 
-                                idx = $1`;
-        const deleteRequestValues = [requestIdx];
-        await poolClient.query(deleteRequestSQL, deleteRequestValues);
 
-        const selectUserSQL = `
-                            SELECT
-                                user_idx
-                            FROM 
-                                request
-                            WHERE 
-                                idx = $1`;
-        const selectUserSQLValues = [requestIdx];
-        const selectUserSQLResult = await poolClient.query(selectUserSQL, selectUserSQLValues);
-        const selectedUser = selectUserSQLResult.rows[0];
-        const userIdx = selectedUser.user_idx;
+        await poolClient.query(
+            `UPDATE
+                request
+            SET 
+                deleted_at = now(), is_confirmed = false
+            WHERE 
+                idx = $1`,
+            [requestIdx]
+        );
 
-        await generateNotification(3, userIdx);
+        const selectRequestSQLResult = await poolClient.query(
+            `SELECT
+                user_idx, title
+            FROM 
+                request
+            WHERE 
+                idx = $1`,
+            [requestIdx]
+        );
+        const selectedRequest = selectRequestSQLResult.rows[0];
+
+        await poolClient.query(
+            `INSERT INTO
+                game(user_idx, title, deleted_at)
+            VALUES
+                ( $1, $2, now())`,
+            [selectedRequest.user_idx, selectedRequest.title]
+        );
+        const latestGameResult = await poolClient.query(
+            `SELECT
+                idx
+            FROM
+                game
+            ORDER BY
+                idx DESC
+            LIMIT
+                1`
+        );
+        latestGame = latestGameResult.rows[0];
+
+        await generateNotification({
+            conn: poolClient,
+            type: 'DENY_GAME',
+            gameIdx: latestGame.idx,
+            toUserIdx: selectedRequest.user_idx,
+        });
+
         await poolClient.query(`COMMIT`);
 
         res.status(200).send();
