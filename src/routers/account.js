@@ -379,44 +379,15 @@ router.put(
         try {
             const deletePwSql = `
         UPDATE
-            "user" 
+            "user"
         SET
-            deleted_at = now()
+            deleted_at = now(),
+            password = $2
         WHERE
             idx = $1`;
-            const deletePwValue = [idx];
+            const deletePwValue = [idx, pw];
             const deletePwResult = await pool.query(deletePwSql, deletePwValue);
             if (deletePwResult.rows.length === 0) {
-                return res.status(400).send('비밀번호 변경 실패');
-            }
-            const newPwSql = `
-        INSERT INTO 
-            "user" (is_admin, nickname, email)
-        SELECT 
-            is_admin, nickname, email
-        FROM 
-            "user"
-        WHERE
-            idx = $1
-        RETURNING *`;
-            const userInfo = await pool.query(newPwSql, deletePwValue);
-            if (userInfo.rows.length === 0) {
-                return res.status(400).send('비밀번호 변경 실패');
-            }
-            const user = userInfo.rows[0];
-
-            const changePwSql = `
-        INSERT INTO
-            account_local(id, pw, user_idx)
-        SELECT
-            id,$2,$3
-        FROM
-            account_local
-        WHERE
-            user_idx=$1`;
-            const changePwValue = [idx, pw, user.idx];
-            const changePwResult = await pool.query(changePwSql, changePwValue);
-            if (changePwResult.rows.length === 0) {
                 return res.status(400).send('비밀번호 변경 실패');
             }
             return res.status(200).send('비밀번호 변경 성공');
