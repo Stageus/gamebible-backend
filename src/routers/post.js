@@ -2,34 +2,42 @@
 const router = require('express').Router();
 const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
+const { body } = require('express-validator');
+const { handleValidationErrors } = require('../middlewares/validator');
 
 //Apis
-
 //게시글 쓰기
 //이 api는 프론트와 상의 후 수정하기로..
-router.post('/', checkLogin, async (req, res, next) => {
-    const { title, content } = req.body;
-    const gameIdx = req.query.gameidx;
-    const userIdx = req.decoded.userIdx;
-    try {
-        await pool.query(
-            `
-            INSERT INTO
-                post(
-                    user_idx,
-                    game_idx,
-                    title,
-                    content
-                )
-            VALUES
-                ($1, $2, $3, $4)`,
-            [userIdx, gameIdx, title, content]
-        );
-        res.status(201).send();
-    } catch (err) {
-        next(err);
+router.post(
+    '/',
+    checkLogin,
+    body('title').notEmpty().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자'),
+    body('content').notEmpty().isLength({ min: 2, max: 1000 }).withMessage('본문은 2~1000자'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { title, content } = req.body;
+        const gameIdx = req.query.gameidx;
+        const userIdx = req.decoded.userIdx;
+        try {
+            await pool.query(
+                `
+                INSERT INTO
+                    post(
+                        user_idx,
+                        game_idx,
+                        title,
+                        content
+                    )
+                VALUES
+                    ($1, $2, $3, $4)`,
+                [userIdx, gameIdx, title, content]
+            );
+            res.status(201).send();
+        } catch (err) {
+            next(err);
+        }
     }
-});
+);
 
 //게시판 보기 (게시글 목록보기)
 //무한스크롤
