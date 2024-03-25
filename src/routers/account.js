@@ -294,9 +294,9 @@ router.post('/email/auth', async (req, res, next) => {
             code = $2`;
         const queryResult = await pool.query(checkEmailSql, [email, code]);
         if (queryResult.rows.length == 0) {
-            res.status(400).send('잘못된 인증 코드입니다.');
+            return res.status(400).send('잘못된 인증 코드입니다.');
         }
-        res.status(200).send('이메일 전송 성공');
+        return res.status(200).send('이메일 인증이 완료되었습니다.');
     } catch (e) {
         next(e);
     }
