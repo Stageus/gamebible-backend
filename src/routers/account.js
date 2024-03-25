@@ -10,14 +10,7 @@ const sendVerificationEmail = require('../modules/sendVerificationEmail');
 const changePwEmail = require('../modules/changePwEmail');
 const deleteCode = require('../modules/deleteCode');
 const { uploadS3 } = require('../middlewares/upload');
-const {
-    validateId,
-    validateEmail,
-    validatePassword,
-    validatePasswordMatch,
-    validateNickname,
-    handleValidationErrors,
-} = require('../middlewares/validator');
+const { handleValidationErrors } = require('../middlewares/validator');
 
 //로그인
 router.post(
@@ -348,16 +341,20 @@ router.get('/id', async (req, res, next) => {
 });
 
 //비밀번호 찾기(이메일 전송)
-router.post('/pw/email', validateEmail, async (req, res, next) => {
-    const { email } = req.body;
+router.post(
+    '/pw/email',
+    body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    async (req, res, next) => {
+        const { email } = req.body;
 
-    try {
-        const emailToken = await changePwEmail(email);
-        return res.status(200).send({ token: emailToken });
-    } catch (error) {
-        next(error);
+        try {
+            const emailToken = await changePwEmail(email);
+            return res.status(200).send({ token: emailToken });
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 //비밀번호 변경
 router.put(
