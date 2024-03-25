@@ -375,16 +375,17 @@ router.put(
     async (req, res, next) => {
         const { pw } = req.body;
         const { idx } = req.decoded;
+        console.log(idx);
 
         try {
             const deletePwSql = `
         UPDATE
-            "user"
+            account_local
         SET
-            deleted_at = now(),
-            password = $2
+            pw = $2
         WHERE
-            idx = $1`;
+            user_idx = $1
+        RETURNING *`;
             const deletePwValue = [idx, pw];
             const deletePwResult = await pool.query(deletePwSql, deletePwValue);
             if (deletePwResult.rows.length === 0) {
