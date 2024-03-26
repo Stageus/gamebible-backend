@@ -7,23 +7,29 @@ const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification } = require('../modules/generateNotification');
 
 //게임생성요청
-router.post('/request', checkLogin, async (req, res, next) => {
-    const { title } = req.body;
-    const { userIdx } = req.decoded;
-    try {
-        const sql = `
+router.post(
+    '/request',
+    checkLogin,
+    body('title').trim().isLength({ min: 2 }).withMessage('2글자이상입력해주세요'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { title } = req.body;
+        const { userIdx } = req.decoded;
+        try {
+            const sql = `
         INSERT INTO 
             request(user_idx, title) 
         VALUES 
             ( $1 ,$2 ) `;
-        const values = [userIdx, title];
-        await pool.query(sql, values);
+            const values = [userIdx, title];
+            await pool.query(sql, values);
 
-        res.status(200).send();
-    } catch (e) {
-        next(e);
+            res.status(200).send();
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 //게임목록불러오기
 router.get('/', async (req, res, next) => {

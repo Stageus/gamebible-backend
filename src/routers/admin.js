@@ -235,25 +235,26 @@ router.post(
             const location = req.files[0].location;
 
             await poolClient.query(`BEGIN`);
-            const deleteThumnailSQL = `
-                                    UPDATE
-                                        game_img_thumnail
-                                    SET
-                                        deleted_at = now()
-                                    WHERE
-                                        game_idx = $1
-                                    AND
-                                        deleted_at IS NULL`;
-            const deleteThumnailValues = [gameIdx];
-            await poolClient.query(deleteThumnailSQL, deleteThumnailValues);
-
-            const insertThumnailSQL = `
-                                    INSERT INTO
-                                        game_img_thumnail(game_idx, img_path)
-                                    VALUES 
-                                        ( $1, $2 )`;
-            const insertThumnailVALUES = [gameIdx, location];
-            await poolClient.query(insertThumnailSQL, insertThumnailVALUES);
+            //기존 썸네일 삭제
+            await poolClient.query(
+                `UPDATE
+                    game_img_thumnail
+                SET
+                    deleted_at = now()
+                WHERE
+                    game_idx = $1
+                AND
+                    deleted_at IS NULL`,
+                [gameIdx]
+            );
+            //새로운 썸네일 등록
+            await poolClient.query(
+                `INSERT INTO
+                    game_img_thumnail(game_idx, img_path)
+                VALUES 
+                    ( $1, $2 )`,
+                [gameIdx, location]
+            );
 
             await poolClient.query(`COMMIT`);
 
@@ -262,7 +263,7 @@ router.post(
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
-            poolClient.release();
+            if (poolClient) poolClient.release();
         }
     }
 );
