@@ -159,25 +159,24 @@ router.get('/popular', async (req, res, next) => {
 //히스토리 목록보기
 router.get('/:gameidx/history', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
-    const result = {
-        data: {},
-    };
     try {
-        const sql = `
-        SELECT 
-            h.idx, h.created_at, u.nickname
-        FROM 
-            history h 
-        JOIN 
-            "user" u
-        ON 
-            h.user_idx = u.idx
-        WHERE 
-            game_idx = $1
-        ORDER BY
-            h.created_at`;
-        const values = [gameIdx];
-        const selectHistorySQLResult = await pool.query(sql, values);
+        //특정게임 히스토리목록 최신순으로 출력
+        const selectHistorySQLResult = await pool.query(
+            `
+            SELECT 
+                h.idx, h.created_at, u.nickname
+            FROM 
+                history h 
+            JOIN 
+                "user" u
+            ON 
+                h.user_idx = u.idx
+            WHERE 
+                game_idx = $1
+            ORDER BY
+                h.created_at DESC`,
+            [gameIdx]
+        );
         const beforeHistoryList = selectHistorySQLResult.rows;
 
         let idx;
@@ -202,9 +201,8 @@ router.get('/:gameidx/history', async (req, res, next) => {
 
             historyList.push(history);
         });
-        result.data = historyList;
 
-        res.status(200).send(result);
+        res.status(200).send({ data: historyList });
     } catch (e) {
         next(e);
     }
@@ -214,27 +212,22 @@ router.get('/:gameidx/history', async (req, res, next) => {
 router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
     const historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
-    const result = {
-        data: {},
-    };
     try {
-        const sql = `
-        SELECT    
-              * 
-        FROM 
-            history
-        WHERE 
-            idx = $1
-        AND 
-            game_idx = $2`;
-
-        const values = [historyIdx, gameIdx];
-        const getHistorySQLResult = await pool.query(sql, values);
+        const getHistorySQLResult = await pool.query(
+            `
+            SELECT    
+                * 
+            FROM 
+                history
+            WHERE 
+                idx = $1
+            AND 
+                game_idx = $2`,
+            [historyIdx, gameIdx]
+        );
         const history = getHistorySQLResult.rows;
 
-        result.data = history;
-
-        res.status(200).send(result);
+        res.status(200).send({ data: history });
     } catch (e) {
         next(e);
     }
@@ -258,8 +251,6 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
             [gameIdx]
         );
         const history = getHistorySQLResult.rows;
-
-        result.data = history;
 
         res.status(200).send({ data: history });
     } catch (e) {
