@@ -186,37 +186,39 @@ router.post(
         let poolClient;
 
         try {
+            const location = req.files[0].location;
+
             poolClient = await pool.connect();
             await poolClient.query(`BEGIN`);
-            const location = req.files[0].location;
-            const deleteBannerSQL = `
-                            UPDATE 
-                                game_img_banner
-                            SET 
-                                deleted_at = now()
-                            WHERE 
-                                game_idx = $1
-                            AND 
-                                deleted_at IS NULL`;
-            const deleteBannerValues = [gameIdx];
-            await poolClient.query(deleteBannerSQL, deleteBannerValues);
 
-            const insertBannerSQL = `
-                            INSERT INTO
-                                game_img_banner(game_idx, img_path)
-                            VALUES
-                                ($1, $2)`;
-            const insertBannerValues = [gameIdx, location];
-            await poolClient.query(insertBannerSQL, insertBannerValues);
+            //기존배너이미지 삭제
+            await poolClient.query(
+                `UPDATE 
+                    game_img_banner
+                SET 
+                    deleted_at = now()
+                WHERE 
+                    game_idx = $1
+                AND 
+                    deleted_at IS NULL`,
+                [gameIdx]
+            );
+            //새로운배너이미지 추가
+            await poolClient.query(
+                `INSERT INTO
+                    game_img_banner(game_idx, img_path)
+                VALUES
+                    ($1, $2)`,
+                [gameIdx, location]
+            );
             await poolClient.query(`COMMIT`);
 
             res.status(201).send();
         } catch (e) {
-            console.log('에러발생');
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
-            poolClient.release();
+            if (poolClient) poolClient.release();
         }
     }
 );

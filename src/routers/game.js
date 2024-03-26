@@ -89,7 +89,9 @@ router.get(
                 WHERE
                     title
                 LIKE 
-                    '%' ||$1|| '%'`,
+                    '%' ||$1|| '%'
+                AND
+                    t.deleted_at IS NULL`,
                 [title]
             );
             const selectedGameList = searchSQLResult.rows;
