@@ -164,6 +164,31 @@ router.get('/popular', async (req, res, next) => {
         next(e);
     }
 });
+//배너이미지가져오기
+router.get('/:gameidx/banner', async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    try {
+        //삭제되지않은 배너이미지경로 가져오기
+        const bannerSQLResult = await pool.query(
+            `
+            SELECT
+                img_path AS "imgPath"
+            FROM 
+                game_img_banner
+            WHERE
+                game_idx = $1
+            AND
+                deleted_at IS NULL`,
+            [gameIdx]
+        );
+        const banner = bannerSQLResult.rows;
+        res.status(200).send({
+            data: banner,
+        });
+    } catch (e) {
+        next(e);
+    }
+});
 
 //히스토리 목록보기
 router.get('/:gameidx/history', async (req, res, next) => {
