@@ -105,8 +105,8 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
         res.status(200).send({
             data: requestList,
         });
-    } catch (err) {
-        return next(err);
+    } catch (e) {
+        next(e);
     }
 });
 
