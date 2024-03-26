@@ -243,29 +243,25 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
 //게임 자세히보기
 router.get('/:gameidx/wiki', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
-    const result = {
-        data: {},
-    };
     try {
-        const sql = `
-        SELECT 
-            content, created_at 
-        FROM 
-            history
-        WHERE 
-            game_idx = $1
-        ORDER BY
-            created_at DESC
-        limit 
-            1`;
-        const values = [gameIdx];
-
-        const getHistorySQLResult = await pool.query(sql, values);
+        const getHistorySQLResult = await pool.query(
+            `SELECT 
+                content, created_at 
+            FROM 
+                history
+            WHERE 
+                game_idx = $1
+            ORDER BY
+                created_at DESC
+            limit 
+                1`,
+            [gameIdx]
+        );
         const history = getHistorySQLResult.rows;
 
         result.data = history;
 
-        res.status(200).send(result);
+        res.status(200).send({ data: history });
     } catch (e) {
         next(e);
     }
