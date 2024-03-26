@@ -112,12 +112,11 @@ router.get('/popular', async (req, res, next) => {
         skip = (page - 1) * 16 + 3;
     }
 
-    const result = {
-        data: {},
-    };
-
     try {
-        const sql = `
+        //
+        const popularSelectSQLResult = await pool.query(
+            //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
+            `
                 SELECT
                     g.idx, g.title, count(*) AS post_count ,t.img_path  
                 FROM 
@@ -139,18 +138,19 @@ router.get('/popular', async (req, res, next) => {
                 LIMIT
                     $1
                 OFFSET
-                    $2`;
-
-        const values = [count, skip];
-        const popularSelectSQLResult = await pool.query(sql, values);
+                    $2`,
+            [count, skip]
+        );
         const popularGameList = popularSelectSQLResult.rows;
 
-        result.data.page = page;
-        result.data.skip = skip;
-        result.data.count = popularGameList.length;
-        result.data.gameList = popularGameList;
-
-        res.status(200).send(result);
+        res.status(200).send({
+            data: {
+                page: page,
+                skip: skip,
+                count: popularGameList.length,
+                gameList: popularGameList,
+            },
+        });
     } catch (e) {
         next(e);
     }
