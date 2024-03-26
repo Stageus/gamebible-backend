@@ -70,26 +70,27 @@ router.get(
     handleValidationErrors,
     async (req, res, next) => {
         const { title } = req.query;
-        const result = {
-            data: {},
-        };
         try {
-            const sql = `
-            SELECT 
-                *
-            FROM 
-                stageus.game
-            WHERE 
-                title 
-            LIKE 
-                '%' ||$1|| '%'`;
-
-            const values = [title];
-            const searchSQLResult = await pool.query(sql, values);
+            const searchSQLResult = await pool.query(
+                `SELECT
+                    g.idx, g.title, t.img_path
+                FROM
+                    game g 
+                JOIN
+                    game_img_thumnail t 
+                ON 
+                    g.idx = t.game_idx
+                WHERE
+                    title
+                LIKE 
+                    '%' ||$1|| '%'`,
+                [title]
+            );
             const selectedGameList = searchSQLResult.rows;
-            result.data = selectedGameList;
 
-            res.status(200).send(result);
+            res.status(200).send({
+                data: selectedGameList,
+            });
         } catch (e) {
             next(e);
         }
