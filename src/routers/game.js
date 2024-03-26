@@ -28,36 +28,36 @@ router.post('/request', checkLogin, async (req, res, next) => {
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
     let { page } = req.query;
-    const result = {
-        data: {},
-    };
     //20개씩 불러오기
     const skip = (page - 1) * 20;
 
     try {
-        const sql = `
-        SELECT 
-            *
-        FROM 
-            game
-        WHERE 
-            deleted_at IS NULL 
-        ORDER BY 
-            title ASC
-        LIMIT 
-            20
-        OFFSET
-            $1`;
-        const values = [skip];
-        const gameSelectSQLResult = await pool.query(sql, values);
+        const gameSelectSQLResult = await pool.query(
+            `SELECT 
+                *
+            FROM 
+                game
+            WHERE 
+                deleted_at IS NULL 
+            ORDER BY 
+                title ASC
+            LIMIT 
+                20
+            OFFSET
+                $1`,
+            [skip]
+        );
 
         const gameList = gameSelectSQLResult.rows;
-        result.data.page = page;
-        result.data.skip = skip;
-        result.data.count = gameList.length;
-        result.data.gameList = gameList;
 
-        res.status(200).send(result);
+        res.status(200).send({
+            data: {
+                page: page,
+                skip: skip,
+                count: gameList.length,
+                gameList: gameList,
+            },
+        });
     } catch (e) {
         next(e);
     }
