@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const moment = require('moment');
 const { pool } = require('../config/postgres');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification } = require('../modules/generateNotification');
@@ -272,57 +272,62 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 });
 
 //게임 수정하기
-router.put('/:gameidx/wiki', checkLogin, async (req, res, next) => {
-    const gameIdx = req.params.gameidx;
-    const { userIdx } = req.decoded;
-    const { content } = req.body;
+router.put(
+    '/:gameidx/wiki',
+    checkLogin,
+    body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const gameIdx = req.params.gameidx;
+        const { userIdx } = req.decoded;
+        const { content } = req.body;
 
-    let poolClient = null;
-    try {
-        poolClient = await pool.connect();
-        await poolClient.query(`BEGIN`);
+        let poolClient = null;
+        try {
+            poolClient = await pool.connect();
+            await poolClient.query(`BEGIN`);
 
-        //기존 게임수정자들 알림
-        const historyUserSQLResult = await poolClient.query(
-            `SELECT DISTINCT 
-                user_idx
-            FROM
-                history
-            WHERE 
-                game_idx = $1`,
-            [gameIdx]
-        );
-        let historyUserList = historyUserSQLResult.rows;
+            //기존 게임수정자들 추출
+            const historyUserSQLResult = await poolClient.query(
+                `SELECT DISTINCT 
+                    user_idx
+                FROM
+                    history
+                WHERE 
+                    game_idx = $1`,
+                [gameIdx]
+            );
+            let historyUserList = historyUserSQLResult.rows;
 
-        for (let i = 0; i < historyUserList.length; i++) {
-            await generateNotification({
-                conn: poolClient,
-                type: 'MODIFY_GAME',
-                gameIdx: gameIdx,
-                toUserIdx: historyUserList[i].user_idx,
-            });
+            for (let i = 0; i < historyUserList.length; i++) {
+                await generateNotification({
+                    conn: poolClient,
+                    type: 'MODIFY_GAME',
+                    gameIdx: gameIdx,
+                    toUserIdx: historyUserList[i].user_idx,
+                });
+            }
+
+            // 새로운 히스토리 등록
+            await poolClient.query(
+                `INSERT INTO 
+                    history(game_idx, user_idx, content)
+                VALUES 
+                    ($1, $2, $3)`,
+                [gameIdx, userIdx, content]
+            );
+
+            await poolClient.query(`COMMIT`);
+
+            res.status(200).send();
+        } catch (e) {
+            console.log('에러발생');
+            await poolClient.query(`ROLLBACK`);
+            next(e);
+        } finally {
+            if (poolClient) poolClient.release();
         }
-        console.log('함수끝');
-
-        // 새로운 히스토리 등록
-        await poolClient.query(
-            `INSERT INTO 
-                history(game_idx, user_idx, content)
-            VALUES 
-                ($1, $2, $3)`,
-            [gameIdx, userIdx, content]
-        );
-
-        await poolClient.query(`COMMIT`);
-
-        res.status(200).send();
-    } catch (e) {
-        console.log('에러발생');
-        await poolClient.query(`ROLLBACK`);
-        next(e);
-    } finally {
-        if (poolClient) poolClient.release();
     }
-});
+);
 
 module.exports = router;
