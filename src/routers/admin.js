@@ -116,7 +116,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
     try {
         poolClient = await pool.connect();
         await poolClient.query(`BEGIN`);
-
+        // 요청삭제
         await poolClient.query(
             `UPDATE
                 request
@@ -126,7 +126,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                 idx = $1`,
             [requestIdx]
         );
-
+        // 요청의 user_idx, 게임제목 추출
         const selectRequestSQLResult = await poolClient.query(
             `SELECT
                 user_idx, title
@@ -137,7 +137,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
             [requestIdx]
         );
         const selectedRequest = selectRequestSQLResult.rows[0];
-
+        // 추출한 user_idx, 게임제목으로 새로운 게임 생성, 삭제 -> 그래야 거절 알림보낼 수 있음
         await poolClient.query(
             `INSERT INTO
                 game(user_idx, title, deleted_at)
@@ -145,6 +145,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                 ( $1, $2, now())`,
             [selectedRequest.user_idx, selectedRequest.title]
         );
+        // 방금 생성,삭제된 게임idx 추출
         const latestGameResult = await poolClient.query(
             `SELECT
                 idx
@@ -156,7 +157,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                 1`
         );
         latestGame = latestGameResult.rows[0];
-
+        //알림생성
         await generateNotification({
             conn: poolClient,
             type: 'DENY_GAME',
@@ -171,7 +172,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
         await poolClient.query(`ROLLBACK`);
         next(e);
     } finally {
-        poolClient.release();
+        if (poolClient) poolClient.release();
     }
 });
 
