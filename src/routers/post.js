@@ -177,9 +177,9 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
         const data = await poolClient.query(
             `
             SELECT 
-                post.idx,
-                post.user_idx,
-                post.*,
+                post.title, 
+                post.content,
+                post.created_at, 
                 "user".nickname,
                 -- 조회수 불러오기
                 (
