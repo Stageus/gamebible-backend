@@ -102,9 +102,6 @@ router.get('/', checkLogin, async (req, res, next) => {
             data: data.rows,
             lastIdx: data.rows[data.rows.length - 1].idx,
         });
-        res.status(200).send({
-            data: data.rows,
-        });
     } catch (err) {
         next(err);
     }
