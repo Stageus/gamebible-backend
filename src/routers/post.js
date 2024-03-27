@@ -11,8 +11,8 @@ const { handleValidationErrors } = require('../middlewares/validator');
 router.post(
     '/',
     checkLogin,
-    body('title').notEmpty().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자'),
-    body('content').notEmpty().isLength({ min: 2, max: 1000 }).withMessage('본문은 2~1000자'),
+    body('title').trim().isLength({ min: 2, max: 40 }).withMessage('2~40글자 입력해주세요'),
+    body('content').trim().isLength({ min: 2, max: 1000 }).withMessage('본문은 2~10000자'),
     handleValidationErrors,
     async (req, res, next) => {
         const { title, content } = req.body;
@@ -96,13 +96,16 @@ router.get('/', async (req, res, next) => {
 
 //게시글 검색하기
 //페이지네이션
-router.get('/search', async (req, res, next) => {
-    const { page, search } = req.query;
-    try {
-        //20개씩 불러오기
-        const offset = (page - 1) * 20;
-        const data = await pool.query(
-            `
+router.get(
+    '/search',
+    query('title').trim().isLength({ min: 2 }).withMessage('2글자 이상입력해주세요'),
+    async (req, res, next) => {
+        const { page, title } = req.query;
+        try {
+            //20개씩 불러오기
+            const offset = (page - 1) * 20;
+            const data = await pool.query(
+                `
             SELECT 
                 post.title, 
                 post.created_at, 
@@ -123,7 +126,7 @@ router.get('/search', async (req, res, next) => {
             JOIN 
                 "user" ON post.user_idx = "user".idx
             WHERE
-                post.title LIKE '%${search}%'
+                post.title LIKE '%${title}%'
             AND 
                 post.deleted_at IS NULL
             ORDER BY
@@ -132,19 +135,20 @@ router.get('/search', async (req, res, next) => {
                 20
             OFFSET
                 $1`,
-            [offset]
-        );
-        const length = data.rows.length;
-        res.status(200).send({
-            data: data.rows,
-            page,
-            offset,
-            length,
-        });
-    } catch (err) {
-        return next(err);
+                [offset]
+            );
+            const length = data.rows.length;
+            res.status(200).send({
+                data: data.rows,
+                page,
+                offset,
+                length,
+            });
+        } catch (err) {
+            return next(err);
+        }
     }
-});
+);
 
 //게시글 상세보기
 router.get('/:postidx', checkLogin, async (req, res, next) => {
