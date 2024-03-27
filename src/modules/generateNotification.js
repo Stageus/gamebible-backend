@@ -26,4 +26,23 @@ const generateNotification = async (option) => {
     );
 };
 
-module.exports = { generateNotification };
+/**
+ *
+ * @param {{
+ *  conn: any,
+ *  gameIdx: number,
+ *  toUserIdx: number[],
+ * }} option
+ */
+const generateNotifications = async (option) => {
+    (option.poolClient || pool).query(
+        `INSERT INTO
+                notification (type, game_idx, post_idx, user_idx)
+            SELECT
+                2, $1, NULL,
+                UNNEST($2::int[])`,
+        [option.gameIdx, option.toUserIdx]
+    );
+};
+
+module.exports = { generateNotification, generateNotifications };
