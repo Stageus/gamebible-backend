@@ -3,6 +3,7 @@ const router = require('express').Router();
 const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification } = require('../modules/generateNotification');
+const { body } = require('express-validator');
 
 //Apis
 
@@ -70,8 +71,10 @@ router.post(
 //댓글 보기
 //무한스크롤
 router.get('/', checkLogin, async (req, res, next) => {
+    const lastIdx = req.query.lastidx;
     const postIdx = req.query.postidx;
     try {
+        //20개씩 불러오기
         const data = await pool.query(
             `
             SELECT
@@ -89,11 +92,17 @@ router.get('/', checkLogin, async (req, res, next) => {
                 post_idx = $1
             AND 
                 comment.deleted_at IS NULL
+            AND
+                comment.idx > $2
             ORDER BY
-                comment.idx DESC`,
-            [postIdx]
+                comment.idx ASC`,
+            [postIdx, lastIdx]
         );
-        res.status(201).send({
+        res.status(200).send({
+            data: data.rows,
+            lastIdx: data.rows[data.rows.length - 1].idx,
+        });
+        res.status(200).send({
             data: data.rows,
         });
     } catch (err) {
