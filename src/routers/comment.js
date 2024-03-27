@@ -7,18 +7,25 @@ const { generateNotification } = require('../modules/generateNotification');
 //Apis
 
 //댓글 쓰기
-router.post('/', checkLogin, async (req, res, next) => {
-    const content = req.body.content;
-    const gameIdx = req.query.gameidx;
-    const postIdx = req.query.postidx;
-    let poolClient;
-    try {
-        const userIdx = req.decoded.userIdx;
-        poolClient = await pool.connect();
-        await poolClient.query('BEGIN');
+router.post(
+    '/',
+    checkLogin,
+    body('content')
+        .trim()
+        .isLength({ min: 1, max: 1000 })
+        .withMessage('내용은 1~1000자로 입력해주세요'),
+    async (req, res, next) => {
+        const content = req.body.content;
+        const gameIdx = req.query.gameidx;
+        const postIdx = req.query.postidx;
+        let poolClient;
+        try {
+            const userIdx = req.decoded.userIdx;
+            poolClient = await pool.connect();
+            await poolClient.query('BEGIN');
 
-        await poolClient.query(
-            `
+            await poolClient.query(
+                `
             INSERT INTO
                 comment(
                     user_idx,
@@ -27,11 +34,11 @@ router.post('/', checkLogin, async (req, res, next) => {
                 )
             VALUES
                 ($1, $2, $3)`,
-            [userIdx, postIdx, content]
-        );
+                [userIdx, postIdx, content]
+            );
 
-        const data = await poolClient.query(
-            `
+            const data = await poolClient.query(
+                `
             SELECT
                 user_idx
             FROM
@@ -39,25 +46,26 @@ router.post('/', checkLogin, async (req, res, next) => {
             WHERE
                 idx = $1
             `,
-            [postIdx]
-        );
-        console.log(data.rows[0].user_idx);
-        await generateNotification({
-            conn: poolClient,
-            type: 'MAKE_COMMENT',
-            gameIdx: gameIdx,
-            postIdx: postIdx,
-            toUserIdx: data.rows[0].user_idx,
-        });
-        res.status(201).send();
-    } catch (err) {
-        console.log('에러발생');
-        await poolClient.query(`ROLLBACK`);
-        next(err);
-    } finally {
-        poolClient.release();
+                [postIdx]
+            );
+            console.log(data.rows[0].user_idx);
+            await generateNotification({
+                conn: poolClient,
+                type: 'MAKE_COMMENT',
+                gameIdx: gameIdx,
+                postIdx: postIdx,
+                toUserIdx: data.rows[0].user_idx,
+            });
+            res.status(201).send();
+        } catch (err) {
+            console.log('에러발생');
+            await poolClient.query(`ROLLBACK`);
+            next(err);
+        } finally {
+            poolClient.release();
+        }
     }
-});
+);
 
 //댓글 보기
 //무한스크롤
