@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 
 //Apis
@@ -102,8 +102,8 @@ router.get(
     async (req, res, next) => {
         const { page, title } = req.query;
         try {
-            //20개씩 불러오기
-            const offset = (page - 1) * 20;
+            //7개씩 불러오기
+            const offset = (page - 1) * 7;
             const data = await pool.query(
                 `
             SELECT 
@@ -132,7 +132,7 @@ router.get(
             ORDER BY
                 post.idx DESC
             LIMIT
-                20
+                7
             OFFSET
                 $1`,
                 [offset]
