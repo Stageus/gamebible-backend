@@ -54,12 +54,9 @@ router.get('/', async (req, res, next) => {
         const data = await pool.query(
             `
             SELECT 
-                post.idx,
                 post.title, 
                 post.created_at, 
-                post.user_idx,
                 "user".nickname,
-                "user".deleted_at,
                 -- 조회수
                 (
                     SELECT
@@ -107,8 +104,8 @@ router.get(
     async (req, res, next) => {
         const { page, title } = req.query;
         try {
-            //7개씩 불러오기
-            const offset = (page - 1) * 7;
+            //20개씩 불러오기
+            const offset = (page - 1) * 20;
             const data = await pool.query(
                 `
             SELECT 
