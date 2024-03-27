@@ -11,8 +11,11 @@ const { handleValidationErrors } = require('../middlewares/validator');
 router.post(
     '/',
     checkLogin,
-    body('title').trim().isLength({ min: 2, max: 40 }).withMessage('2~40글자 입력해주세요'),
-    body('content').trim().isLength({ min: 2, max: 10000 }).withMessage('본문은 2~10000자'),
+    body('title').trim().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자로 입력해주세요'),
+    body('content')
+        .trim()
+        .isLength({ min: 2, max: 10000 })
+        .withMessage('본문은 2~10000자로 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
         const { title, content } = req.body;
