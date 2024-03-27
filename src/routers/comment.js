@@ -37,12 +37,18 @@ router.post('/', checkLogin, async (req, res, next) => {
             FROM
                 post
             WHERE
-                post_idx = $1
+                idx = $1
             `,
             [postIdx]
         );
-        await generateNotification(poolClient, 1, data.rows[0], gameIdx);
-
+        console.log(data.rows[0].user_idx);
+        await generateNotification({
+            conn: poolClient,
+            type: 'MAKE_COMMENT',
+            gameIdx: gameIdx,
+            postIdx: postIdx,
+            toUserIdx: data.rows[0].user_idx,
+        });
         res.status(201).send();
     } catch (err) {
         console.log('에러발생');
