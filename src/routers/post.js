@@ -87,10 +87,12 @@ router.get('/', async (req, res, next) => {
                 $2`,
             [gameIdx, offset]
         );
-        const result = data.rows;
-        console.log(result);
+        const length = data.rows.length;
         res.status(200).send({
-            data: result,
+            data: data.rows,
+            page,
+            offset,
+            length,
         });
     } catch (err) {
         next(err);
