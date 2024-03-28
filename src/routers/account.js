@@ -524,37 +524,55 @@ router.delete('/', checkLogin, async (req, res, next) => {
 router.get('/notification', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
+        const { lastIdx } = req.query;
 
         // 사용자의 알람 조회
         const getNotificationsQuery = `
-        SELECT
+        SELECT 
             * 
-        FROM
-            notification
+        FROM 
+            notification 
         WHERE 
-            user_idx = $1`;
-        const notifications = await pool.query(getNotificationsQuery, [userIdx]);
-
+            user_idx = $1
+        AND 
+            idx > $2 
+        ORDER BY 
+            idx DESC 
+        LIMIT 20`;
+        const notifications = await pool.query(getNotificationsQuery, [userIdx, lastIdx]);
+        const returnLastIdx = notifications.rows[0].idx;
         if (!notifications.rows || notifications.rows.length === 0) {
             return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
-        // 알람 타입에 따른 추가 정보 조회
+        // 알람 타입에 따른 title 조회
         for (let notification of notifications.rows) {
             if (notification.type === 1) {
                 // post 테이블 조회
-                const postQuery = `SELECT title FROM post WHERE idx = $1`;
+                const postQuery = `
+                SELECT 
+                    title 
+                FROM
+                    post 
+                WHERE
+                    idx = $1`;
                 const postResult = await pool.query(postQuery, [notification.post_idx]);
                 notification.postInfo = postResult.rows[0];
             } else if (notification.type === 2 || notification.type === 3) {
                 // game 테이블 조회
-                const gameQuery = `SELECT title FROM game WHERE idx = $1`;
+                const gameQuery = `
+                SELECT 
+                    title 
+                FROM
+                    game
+                WHERE
+                    idx = $1`;
                 const gameResult = await pool.query(gameQuery, [notification.game_idx]);
                 notification.gameInfo = gameResult.rows[0];
             }
         }
 
-        res.status(200).send(notifications.rows);
+        res.status(200).send({ notifications: notifications.rows, lastIdx: returnLastIdx });
     } catch (error) {
         next(error);
     }
