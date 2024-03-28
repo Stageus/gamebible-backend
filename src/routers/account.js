@@ -2,6 +2,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const { body } = require('express-validator');
 require('dotenv').config();
+const bcrypt = require('bcrypt');
 
 const { pool } = require('../config/postgres.js');
 const checkLogin = require('../middlewares/checkLogin.js');
@@ -11,7 +12,7 @@ const changePwEmail = require('../modules/sendChangePwEmail.js');
 const deleteCode = require('../modules/deleteEmailCode.js');
 const { uploadS3 } = require('../middlewares/upload');
 const { handleValidationErrors } = require('../middlewares/validator');
-
+const { hashPassword } = require('../modules/hashPassword');
 //로그인
 router.post(
     '/auth',
@@ -37,30 +38,39 @@ router.post(
     async (req, res, next) => {
         const { id, pw } = req.body;
         try {
-            const loginsql = `
+            // 사용자 정보 조회 (비밀번호는 해시된 상태로 저장되어 있음)
+            const userQuery = `
             SELECT
-                al.*, u.is_admin, u.deleted_at
+                al.pw, u.is_admin, u.deleted_at, al.user_idx
             FROM
                 account_local al
             JOIN
                 "user" u ON al.user_idx = u.idx
             WHERE
-                al.id = $1 AND al.pw = $2 AND u.deleted_at IS NULL`;
+                al.id = $1 AND u.deleted_at IS NULL`;
 
-            const values = [id, pw];
+            const values = [id];
 
-            const { rows: loginRows } = await pool.query(loginsql, values);
+            const { rows: userRows } = await pool.query(userQuery, values);
 
-            if (loginRows.length === 0) {
+            if (userRows.length === 0) {
                 return res.status(401).send({ message: '로그인 실패' });
             }
 
-            const login = loginRows[0];
+            const user = userRows[0];
 
+            // bcrypt.compare 함수로 비밀번호 비교
+            const match = await bcrypt.compare(pw, user.pw);
+
+            if (!match) {
+                return res.status(401).send({ message: '비밀번호 일치하지 않음' });
+            }
+
+            // 비밀번호가 일치하면 토큰 생성
             const token = jwt.sign(
                 {
-                    userIdx: login.user_idx,
-                    isAdmin: login.is_admin,
+                    userIdx: user.user_idx,
+                    isAdmin: user.is_admin,
                 },
                 process.env.SECRET_KEY,
                 {
@@ -116,7 +126,8 @@ router.post(
         const { id, pw, pw_same, nickname, email, isadmin } = req.body;
 
         try {
-            //비밀번호 해싱 구현하기
+            const hashedPw = await hashPassword(pw); // 비밀번호 해싱
+            console.log('Hashed Password:', hashedPw); // 해싱된 비밀번호 출력
 
             const insertUserSql = `
             INSERT INTO
@@ -143,7 +154,7 @@ router.post(
                     )
             VALUES ($1, $2, $3)
             RETURNING *`;
-            const accountValues = [userIdx, id, pw];
+            const accountValues = [userIdx, id, hashedPw];
             const accountResult = await pool.query(insertAccountSql, accountValues);
             if (accountResult.rows.length === 0) {
                 return res.status(401).send({ message: '회원가입 실패' });
@@ -379,15 +390,16 @@ router.put(
         const { idx } = req.decoded;
 
         try {
+            const hashedPw = await hashPassword(pw); // 비밀번호 해싱
             const deletePwSql = `
-        UPDATE
-            account_local
-        SET
-            pw = $2
-        WHERE
-            user_idx = $1
-        RETURNING *`;
-            const deletePwValue = [idx, pw];
+            UPDATE
+                account_local
+            SET
+                pw = $2
+            WHERE
+                user_idx = $1
+            RETURNING *`;
+            const deletePwValue = [idx, hashedPw];
             const deletePwResult = await pool.query(deletePwSql, deletePwValue);
             if (deletePwResult.rows.length === 0) {
                 return res.status(400).send('비밀번호 변경 실패');
