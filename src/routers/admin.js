@@ -91,22 +91,20 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
 });
 //승인요청온 게임목록보기
 router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
-    const result = {
-        data: {},
-    };
     try {
-        const selectRequestSQL = `
-                            SELECT
-                                *
-                            FROM
-                                request
-                            WHERE 
-                                deleted_at IS NULL`;
-        const selectRequestSQLResult = await pool.query(selectRequestSQL);
+        const selectRequestSQLResult = await pool.query(
+            `SELECT
+                *
+            FROM
+                request
+            WHERE 
+                deleted_at IS NULL`
+        );
         const requestList = selectRequestSQLResult.rows;
 
-        result.data = requestList;
-        res.status(200).send(result);
+        res.status(200).send({
+            data: requestList,
+        });
     } catch (e) {
         next(e);
     }
@@ -119,29 +117,55 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
     try {
         poolClient = await pool.connect();
         await poolClient.query(`BEGIN`);
-        const deleteRequestSQL = `
-                            UPDATE
-                                request
-                            SET 
-                                deleted_at = now(), is_confirmed = false
-                            WHERE 
-                                idx = $1`;
-        const deleteRequestValues = [requestIdx];
-        await poolClient.query(deleteRequestSQL, deleteRequestValues);
+        // 요청삭제
+        await poolClient.query(
+            `UPDATE
+                request
+            SET 
+                deleted_at = now(), is_confirmed = false
+            WHERE 
+                idx = $1`,
+            [requestIdx]
+        );
+        // 요청의 user_idx, 게임제목 추출
+        const selectRequestSQLResult = await poolClient.query(
+            `SELECT
+                user_idx, title
+            FROM 
+                request
+            WHERE 
+                idx = $1`,
+            [requestIdx]
+        );
+        const selectedRequest = selectRequestSQLResult.rows[0];
+        // 추출한 user_idx, 게임제목으로 새로운 게임 생성, 삭제 -> 그래야 거절 알림보낼 수 있음
+        await poolClient.query(
+            `INSERT INTO
+                game(user_idx, title, deleted_at)
+            VALUES
+                ( $1, $2, now())`,
+            [selectedRequest.user_idx, selectedRequest.title]
+        );
+        // 방금 생성,삭제된 게임idx 추출
+        const latestGameResult = await poolClient.query(
+            `SELECT
+                idx
+            FROM
+                game
+            ORDER BY
+                idx DESC
+            LIMIT
+                1`
+        );
+        latestGame = latestGameResult.rows[0];
+        //알림생성
+        await generateNotification({
+            conn: poolClient,
+            type: 'DENY_GAME',
+            gameIdx: latestGame.idx,
+            toUserIdx: selectedRequest.user_idx,
+        });
 
-        const selectUserSQL = `
-                            SELECT
-                                user_idx
-                            FROM 
-                                request
-                            WHERE 
-                                idx = $1`;
-        const selectUserSQLValues = [requestIdx];
-        const selectUserSQLResult = await poolClient.query(selectUserSQL, selectUserSQLValues);
-        const selectedUser = selectUserSQLResult.rows[0];
-        const userIdx = selectedUser.user_idx;
-
-        await generateNotification(3, userIdx);
         await poolClient.query(`COMMIT`);
 
         res.status(200).send();
@@ -149,7 +173,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
         await poolClient.query(`ROLLBACK`);
         next(e);
     } finally {
-        poolClient.release();
+        if (poolClient) poolClient.release();
     }
 });
 
@@ -164,37 +188,39 @@ router.post(
         let poolClient;
 
         try {
+            const location = req.files[0].location;
+
             poolClient = await pool.connect();
             await poolClient.query(`BEGIN`);
-            const location = req.files[0].location;
-            const deleteBannerSQL = `
-                            UPDATE 
-                                game_img_banner
-                            SET 
-                                deleted_at = now()
-                            WHERE 
-                                game_idx = $1
-                            AND 
-                                deleted_at IS NULL`;
-            const deleteBannerValues = [gameIdx];
-            await poolClient.query(deleteBannerSQL, deleteBannerValues);
 
-            const insertBannerSQL = `
-                            INSERT INTO
-                                game_img_banner(game_idx, img_path)
-                            VALUES
-                                ($1, $2)`;
-            const insertBannerValues = [gameIdx, location];
-            await poolClient.query(insertBannerSQL, insertBannerValues);
+            //기존배너이미지 삭제
+            await poolClient.query(
+                `UPDATE 
+                    game_img_banner
+                SET 
+                    deleted_at = now()
+                WHERE 
+                    game_idx = $1
+                AND 
+                    deleted_at IS NULL`,
+                [gameIdx]
+            );
+            //새로운배너이미지 추가
+            await poolClient.query(
+                `INSERT INTO
+                    game_img_banner(game_idx, img_path)
+                VALUES
+                    ($1, $2)`,
+                [gameIdx, location]
+            );
             await poolClient.query(`COMMIT`);
 
             res.status(201).send();
         } catch (e) {
-            console.log('에러발생');
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
-            poolClient.release();
+            if (poolClient) poolClient.release();
         }
     }
 );
@@ -213,25 +239,26 @@ router.post(
             const location = req.files[0].location;
 
             await poolClient.query(`BEGIN`);
-            const deleteThumnailSQL = `
-                                    UPDATE
-                                        game_img_thumnail
-                                    SET
-                                        deleted_at = now()
-                                    WHERE
-                                        game_idx = $1
-                                    AND
-                                        deleted_at IS NULL`;
-            const deleteThumnailValues = [gameIdx];
-            await poolClient.query(deleteThumnailSQL, deleteThumnailValues);
-
-            const insertThumnailSQL = `
-                                    INSERT INTO
-                                        game_img_thumnail(game_idx, img_path)
-                                    VALUES 
-                                        ( $1, $2 )`;
-            const insertThumnailVALUES = [gameIdx, location];
-            await poolClient.query(insertThumnailSQL, insertThumnailVALUES);
+            //기존 썸네일 삭제
+            await poolClient.query(
+                `UPDATE
+                    game_img_thumnail
+                SET
+                    deleted_at = now()
+                WHERE
+                    game_idx = $1
+                AND
+                    deleted_at IS NULL`,
+                [gameIdx]
+            );
+            //새로운 썸네일 등록
+            await poolClient.query(
+                `INSERT INTO
+                    game_img_thumnail(game_idx, img_path)
+                VALUES 
+                    ( $1, $2 )`,
+                [gameIdx, location]
+            );
 
             await poolClient.query(`COMMIT`);
 
@@ -240,7 +267,7 @@ router.post(
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
-            poolClient.release();
+            if (poolClient) poolClient.release();
         }
     }
 );
