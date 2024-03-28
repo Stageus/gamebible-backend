@@ -7,23 +7,32 @@ const { pool } = require('../config/postgres.js');
 const checkLogin = require('../middlewares/checkLogin.js');
 const generateVerificationCode = require('../modules/generateVerificationCode');
 const sendVerificationEmail = require('../modules/sendVerificationEmail');
-const changePwEmail = require('../modules/changePwEmail');
-const deleteCode = require('../modules/deleteCode');
+const changePwEmail = require('../modules/sendChangePwEmail.js');
+const deleteCode = require('../modules/deleteEmailCode.js');
 const { uploadS3 } = require('../middlewares/upload');
-const {
-    validateId,
-    validateEmail,
-    validatePassword,
-    validatePasswordMatch,
-    validateNickname,
-    handleValidationErrors,
-} = require('../middlewares/validator');
+const { handleValidationErrors } = require('../middlewares/validator');
 
 //로그인
 router.post(
     '/auth',
-    validateId,
-    validatePassword,
+    body('id')
+        .trim()
+        .isAlphanumeric()
+        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
+        .isLength({ min: 4, max: 12 })
+        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+    body('pw')
+        .trim()
+        .isLength({ min: 8 })
+        .withMessage('비밀번호는 8자 이상이어야 합니다.')
+        .matches(/\d/)
+        .withMessage('비밀번호에는 숫자가 최소 1개 이상 포함되어야 합니다.')
+        .matches(/[a-z]/)
+        .withMessage('비밀번호에는 소문자가 최소 1개 이상 포함되어야 합니다.')
+        .matches(/[A-Z]/)
+        .withMessage('비밀번호에는 대문자가 최소 1개 이상 포함되어야 합니다.')
+        .matches(/[!@#$%^&*(),.?":{}|<>]/)
+        .withMessage('비밀번호에는 특수문자가 최소 1개 이상 포함되어야 합니다.'),
     handleValidationErrors,
     async (req, res, next) => {
         const { id, pw } = req.body;
@@ -70,11 +79,37 @@ router.post(
 router.post(
     '/',
     [
-        validateId,
-        validateEmail,
-        validatePassword,
-        validatePasswordMatch,
-        validateNickname,
+        body('id')
+            .trim()
+            .isAlphanumeric()
+            .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
+            .isLength({ min: 4, max: 12 })
+            .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+        body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+        body('pw')
+            .trim()
+            .isLength({ min: 8 })
+            .withMessage('비밀번호는 8자 이상이어야 합니다.')
+            .matches(/\d/)
+            .withMessage('비밀번호에는 숫자가 최소 1개 이상 포함되어야 합니다.')
+            .matches(/[a-z]/)
+            .withMessage('비밀번호에는 소문자가 최소 1개 이상 포함되어야 합니다.')
+            .matches(/[A-Z]/)
+            .withMessage('비밀번호에는 대문자가 최소 1개 이상 포함되어야 합니다.')
+            .matches(/[!@#$%^&*(),.?":{}|<>]/)
+            .withMessage('비밀번호에는 특수문자가 최소 1개 이상 포함되어야 합니다.'),
+        body('pw_same')
+            .trim()
+            .custom((value, { req }) => {
+                if (value !== req.body.pw) {
+                    throw new Error('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+                }
+                return true;
+            }),
+        body('nickname')
+            .trim()
+            .isLength({ min: 2, max: 16 })
+            .withMessage('닉네임은 2자 이상 16자 이하로 해주세요.'),
         handleValidationErrors,
     ],
     async (req, res, next) => {
@@ -106,7 +141,8 @@ router.post(
                     id, 
                     pw
                     )
-            VALUES ($1, $2, $3)`;
+            VALUES ($1, $2, $3)
+            RETURNING *`;
             const accountValues = [userIdx, id, pw];
             const accountResult = await pool.query(insertAccountSql, accountValues);
             if (accountResult.rows.length === 0) {
@@ -120,11 +156,20 @@ router.post(
 );
 
 //아이디 중복 확인
-router.post('/id/check', validateId, handleValidationErrors, async (req, res, next) => {
-    try {
-        const { id } = req.body;
+router.post(
+    '/id/check',
+    body('id')
+        .trim()
+        .isAlphanumeric()
+        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
+        .isLength({ min: 4, max: 12 })
+        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        try {
+            const { id } = req.body;
 
-        const checkIdSql = `
+            const checkIdSql = `
         SELECT
             account_local.* 
         FROM
@@ -139,23 +184,30 @@ router.post('/id/check', validateId, handleValidationErrors, async (req, res, ne
             "user".deleted_at IS NULL;
         `;
 
-        const values = [id];
+            const values = [id];
 
-        const idResults = await pool.query(checkIdSql, values);
-        if (idResults.rows.length > 0) return res.status(409).send('아이디가 이미 존재합니다.');
+            const idResults = await pool.query(checkIdSql, values);
+            if (idResults.rows.length > 0) return res.status(409).send('아이디가 이미 존재합니다.');
 
-        return res.status(200).send('사용 가능한 아이디입니다.');
-    } catch (e) {
-        next(e);
+            return res.status(200).send('사용 가능한 아이디입니다.');
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 //닉네임 중복 확인
-router.post('/nickname/check', validateNickname, async (req, res, next) => {
-    try {
-        const { nickname } = req.body;
+router.post(
+    '/nickname/check',
+    body('nickname')
+        .trim()
+        .isLength({ min: 2, max: 16 })
+        .withMessage('닉네임은 2자 이상 16자 이하로 해주세요.'),
+    async (req, res, next) => {
+        try {
+            const { nickname } = req.body;
 
-        const checkNicknameSql = `
+            const checkNicknameSql = `
         SELECT
             * 
         FROM
@@ -165,24 +217,28 @@ router.post('/nickname/check', validateNickname, async (req, res, next) => {
         AND 
             deleted_at IS NULL`;
 
-        const value = [nickname];
+            const value = [nickname];
 
-        const nicknameResults = await pool.query(checkNicknameSql, value);
-        if (nicknameResults.rows.length > 0)
-            return res.status(409).send('닉네임이 이미 존재합니다.');
+            const nicknameResults = await pool.query(checkNicknameSql, value);
+            if (nicknameResults.rows.length > 0)
+                return res.status(409).send('닉네임이 이미 존재합니다.');
 
-        return res.status(200).send('사용 가능한 닉네임입니다.');
-    } catch (e) {
-        next(e);
+            return res.status(200).send('사용 가능한 닉네임입니다.');
+        } catch (e) {
+            next(e);
+        }
     }
-});
+);
 
 //이메일 중복 확인/인증
-router.post('/email/check', validateEmail, async (req, res, next) => {
-    try {
-        const { email } = req.body;
+router.post(
+    '/email/check',
+    body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    async (req, res, next) => {
+        try {
+            const { email } = req.body;
 
-        const checkEmailSql = `
+            const checkEmailSql = `
         SELECT
             * 
         FROM
@@ -192,13 +248,13 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
         AND 
             deleted_at IS NULL`;
 
-        const checkEmailvalue = [email];
-        const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
-        if (emailResults.rows.length > 0) {
-            return res.status(409).send('이메일이 이미 존재합니다.');
-        } else {
-            const verificationCode = generateVerificationCode();
-            const insertQuery = `
+            const checkEmailvalue = [email];
+            const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
+            if (emailResults.rows.length > 0) {
+                return res.status(409).send('이메일이 이미 존재합니다.');
+            } else {
+                const verificationCode = generateVerificationCode();
+                const insertQuery = `
             INSERT INTO
                 email_verification (
                     email,
@@ -206,20 +262,22 @@ router.post('/email/check', validateEmail, async (req, res, next) => {
                     )
             VALUES
                 ($1, $2)
+            RETURNING *
             `;
-            const codeValues = [email, verificationCode];
-            const codeResults = await pool.query(insertQuery, codeValues);
-            if (codeResults.rows.length == 0) {
-                return res.status(401).send('코드 저장 오류');
+                const codeValues = [email, verificationCode];
+                const codeResults = await pool.query(insertQuery, codeValues);
+                if (codeResults.rows.length == 0) {
+                    return res.status(401).send('코드 저장 오류');
+                }
+                await sendVerificationEmail(email, verificationCode);
+                await deleteCode(pool);
+                return res.status(200).send('인증 코드가 발송되었습니다.');
             }
-            await sendVerificationEmail(email, verificationCode);
-            await deleteCode(pool);
-            return res.status(200).send('인증 코드가 발송되었습니다.');
+        } catch (e) {
+            next(e);
         }
-    } catch (e) {
-        next(e);
     }
-});
+);
 
 //이메일 인증 확인
 router.post('/email/auth', async (req, res, next) => {
@@ -236,9 +294,9 @@ router.post('/email/auth', async (req, res, next) => {
             code = $2`;
         const queryResult = await pool.query(checkEmailSql, [email, code]);
         if (queryResult.rows.length == 0) {
-            res.status(400).send('잘못된 인증 코드입니다.');
+            return res.status(400).send('잘못된 인증 코드입니다.');
         }
-        res.status(400).send('잘못된 인증 코드입니다.');
+        return res.status(200).send('이메일 인증이 완료되었습니다.');
     } catch (e) {
         next(e);
     }
@@ -285,73 +343,64 @@ router.get('/id', async (req, res, next) => {
 });
 
 //비밀번호 찾기(이메일 전송)
-router.post('/pw/email', validateEmail, async (req, res, next) => {
-    const { email } = req.body;
+router.post(
+    '/pw/email',
+    body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    async (req, res, next) => {
+        const { email } = req.body;
 
-    try {
-        const emailToken = await changePwEmail(email);
-        return res.status(200).send({ token: emailToken });
-    } catch (error) {
-        next(error);
+        try {
+            const emailToken = await changePwEmail(email);
+            return res.status(200).send({ token: emailToken });
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 //비밀번호 변경
-router.put('/pw', validatePassword, checkLogin, async (req, res, next) => {
-    const { pw } = req.body;
-    const { idx } = req.decoded;
+router.put(
+    '/pw',
+    body('pw')
+        .trim()
+        .isLength({ min: 8 })
+        .withMessage('비밀번호는 8자 이상이어야 합니다.')
+        .matches(/\d/)
+        .withMessage('비밀번호에는 숫자가 최소 1개 이상 포함되어야 합니다.')
+        .matches(/[a-z]/)
+        .withMessage('비밀번호에는 소문자가 최소 1개 이상 포함되어야 합니다.')
+        .matches(/[A-Z]/)
+        .withMessage('비밀번호에는 대문자가 최소 1개 이상 포함되어야 합니다.')
+        .matches(/[!@#$%^&*(),.?":{}|<>]/)
+        .withMessage('비밀번호에는 특수문자가 최소 1개 이상 포함되어야 합니다.'),
+    checkLogin,
+    async (req, res, next) => {
+        const { pw } = req.body;
+        const { idx } = req.decoded;
 
-    try {
-        const deletePwSql = `
+        try {
+            const deletePwSql = `
         UPDATE
-            "user" 
-        SET
-            deleted_at = now()
-        WHERE
-            idx = $1`;
-        const deletePwValue = [idx];
-        const deletePwResult = await pool.query(deletePwSql, deletePwValue);
-        if (deletePwResult.rows.length === 0) {
-            return res.status(400).send('비밀번호 변경 실패');
-        }
-        const newPwSql = `
-        INSERT INTO 
-            "user" (is_admin, nickname, email)
-        SELECT 
-            is_admin, nickname, email
-        FROM 
-            "user"
-        WHERE
-            idx = $1
-        RETURNING *`;
-        const userInfo = await pool.query(newPwSql, deletePwValue);
-        if (userInfo.rows.length === 0) {
-            return res.status(400).send('비밀번호 변경 실패');
-        }
-        const user = userInfo.rows[0];
-
-        const changePwSql = `
-        INSERT INTO
-            account_local(id, pw, user_idx)
-        SELECT
-            id,$2,$3
-        FROM
             account_local
+        SET
+            pw = $2
         WHERE
-            user_idx=$1`;
-        const changePwValue = [idx, pw, user.idx];
-        const changePwResult = await pool.query(changePwSql, changePwValue);
-        if (changePwResult.rows.length === 0) {
-            return res.status(400).send('비밀번호 변경 실패');
+            user_idx = $1
+        RETURNING *`;
+            const deletePwValue = [idx, pw];
+            const deletePwResult = await pool.query(deletePwSql, deletePwValue);
+            if (deletePwResult.rows.length === 0) {
+                return res.status(400).send('비밀번호 변경 실패');
+            }
+            return res.status(200).send('비밀번호 변경 성공');
+        } catch (error) {
+            next(error);
         }
-        return res.status(200).send('비밀번호 변경 성공');
-    } catch (error) {
-        next(error);
     }
-});
+);
 
 // 내 정보 보기
-router.get('/', checkLogin, async (req, res, next) => {
+router.get('/info', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
@@ -374,59 +423,39 @@ router.get('/', checkLogin, async (req, res, next) => {
 });
 
 // 내 정보 수정
-router.put('/', checkLogin, validateEmail, validateNickname, async (req, res, next) => {
-    const { userIdx } = req.decoded;
-    const { nickname, email } = req.body;
-    try {
-        const deleteInfoSql = `
-        UPDATE
-            "user" 
-        SET
-            deleted_at = now()
-        WHERE
-            idx = $1`;
-        const result = await pool.query(deleteInfoSql, [userIdx]);
-        console.log(userIdx);
+router.put(
+    '/info',
+    checkLogin,
+    body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    body('nickname')
+        .trim()
+        .isLength({ min: 2, max: 16 })
+        .withMessage('닉네임은 2자 이상 16자 이하로 해주세요.'),
+    async (req, res, next) => {
+        const { userIdx } = req.decoded;
+        const { nickname, email } = req.body;
+        try {
+            const newInfoSql = `
+            UPDATE "user"
+            SET
+                nickname = $2,
+                email = $3
+            WHERE
+                idx = $1
+            RETURNING *;
+            `;
 
-        if (result.rowCount == 0) {
-            return res.status(400).send('softdelete오류');
+            const userInfo = await pool.query(newInfoSql, [userIdx, nickname, email]);
+            if (userInfo.rows.length === 0) {
+                return res.status(401).send({ message: '내 정보 수정 실패' });
+            }
+
+            return res.status(200).send('내 정보 수정 성공');
+        } catch (error) {
+            next(error);
         }
-
-        const newInfoSql = `
-        INSERT INTO 
-            "user" (
-                is_admin,
-                nickname, 
-                email
-                )
-        SELECT 
-            is_admin, $2, $3
-        FROM 
-            "user"
-        WHERE
-            idx = $1
-            RETURNING *`;
-
-        const userInfo = await pool.query(newInfoSql, [userIdx, nickname, email]);
-
-        const user = userInfo.rows[0];
-
-        const changeInfoSql = `
-        INSERT INTO
-            account_local(id, pw, user_idx)
-        SELECT
-            id,pw,$2
-        FROM
-            account_local
-        WHERE
-            user_idx=$1`;
-        await pool.query(changeInfoSql, [userIdx, user.idx]);
-
-        return res.status(200).send('내 정보 수정 성공');
-    } catch (error) {
-        next(error);
     }
-});
+);
 
 //프로필 이미지
 router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next) => {
@@ -486,6 +515,100 @@ router.delete('/', checkLogin, async (req, res, next) => {
         await pool.query(deleteSql, [userIdx]);
 
         return res.status(200).send('회원 탈퇴 성공');
+    } catch (error) {
+        next(error);
+    }
+});
+
+//알람 출력
+router.get('/notification', checkLogin, async (req, res, next) => {
+    try {
+        const { userIdx } = req.decoded;
+        const { lastIdx } = req.query;
+
+        // 사용자의 알람 조회
+        const getNotificationsQuery = `
+        SELECT 
+            * 
+        FROM 
+            notification 
+        WHERE 
+            user_idx = $1
+        AND 
+            idx > $2 
+        ORDER BY 
+            idx DESC 
+        LIMIT 20`;
+        const notifications = await pool.query(getNotificationsQuery, [userIdx, lastIdx]);
+        const returnLastIdx = notifications.rows[0].idx;
+        if (!notifications.rows || notifications.rows.length === 0) {
+            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
+        }
+
+        // 알람 타입에 따른 title 조회
+        for (let notification of notifications.rows) {
+            if (notification.type === 1) {
+                // post 테이블 조회
+                const postQuery = `
+                SELECT 
+                    title 
+                FROM
+                    post 
+                WHERE
+                    idx = $1`;
+                const postResult = await pool.query(postQuery, [notification.post_idx]);
+                notification.postInfo = postResult.rows[0];
+            } else if (notification.type === 2 || notification.type === 3) {
+                // game 테이블 조회
+                const gameQuery = `
+                SELECT 
+                    title 
+                FROM
+                    game
+                WHERE
+                    idx = $1`;
+                const gameResult = await pool.query(gameQuery, [notification.game_idx]);
+                notification.gameInfo = gameResult.rows[0];
+            }
+        }
+
+        res.status(200).send({ notifications: notifications.rows, lastIdx: returnLastIdx });
+    } catch (error) {
+        next(error);
+    }
+});
+
+//알람 삭제
+router.delete('/notification/:notificationId', checkLogin, async (req, res, next) => {
+    try {
+        const { userIdx } = req.decoded; // 사용자 ID
+        const { notificationId } = req.params; // URL에서 알람 ID 추출
+
+        // 알람이 사용자의 것인지 확인하는 쿼리
+        const checkNotificationQuery = `
+        SELECT
+            *
+        FROM
+            notification
+        WHERE
+            idx = $1 AND user_idx = $2`;
+        const checkResult = await pool.query(checkNotificationQuery, [notificationId, userIdx]);
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).send('해당 알람을 찾을 수 없거나 삭제할 권한이 없습니다.');
+        }
+
+        // 알람 삭제 쿼리 실행
+        const deleteNotificationQuery = `
+        UPDATE
+            notification
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        await pool.query(deleteNotificationQuery, [notificationId]);
+
+        res.status(200).send(notificationId + '번 알람이 삭제되었습니다.');
     } catch (error) {
         next(error);
     }

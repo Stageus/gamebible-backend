@@ -11,7 +11,15 @@ async function changePwEmail(email) {
         },
     });
 
-    const userQuery = `SELECT idx FROM "user" WHERE email = $1`;
+    const userQuery = `
+    SELECT 
+        idx
+    FROM
+        "user"
+    WHERE
+        email = $1
+    AND
+        deleted_at IS NULL`;
     const userResult = await pool.query(userQuery, [email]);
 
     if (userResult.rows.length === 0) {
@@ -30,7 +38,7 @@ async function changePwEmail(email) {
         }
     );
 
-    const resetLink = `https://yourwebsite.com/${token}`;
+    const resetLink = `https://yourwebsite.com?token=${token}`;
 
     let mailOptions = {
         from: process.env.EMAIL_USER,
