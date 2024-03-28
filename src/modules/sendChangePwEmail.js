@@ -38,7 +38,7 @@ async function changePwEmail(email) {
         }
     );
 
-    const resetLink = `https://yourwebsite.com/${token}`;
+    const resetLink = `https://yourwebsite.com?token=${token}`;
 
     let mailOptions = {
         from: process.env.EMAIL_USER,
