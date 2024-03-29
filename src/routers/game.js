@@ -274,7 +274,7 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     try {
         const getHistorySQLResult = await pool.query(
             `SELECT 
-                content, created_at 
+                title, content, created_at 
             FROM 
                 history
             WHERE 
