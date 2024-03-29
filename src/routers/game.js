@@ -122,6 +122,7 @@ router.get('/popular', async (req, res, next) => {
     }
 
     try {
+        console.log('요청받음');
         //
         const popularSelectSQLResult = await pool.query(
             //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
