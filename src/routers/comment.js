@@ -78,12 +78,9 @@ router.get('/', checkLogin, async (req, res, next) => {
         const data = await pool.query(
             `
             SELECT
-                comment.user_idx,
-                comment.idx,
                 comment.content,
                 comment.created_at,
-                "user".nickname,
-                "user".deleted_at
+                "user".nickname
             FROM 
                 comment
             JOIN
@@ -130,3 +127,4 @@ router.delete('/:commentidx', checkLogin, async (req, res, next) => {
 });
 
 module.exports = router;
+console.log('a' + +'t');
