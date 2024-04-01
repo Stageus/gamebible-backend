@@ -274,15 +274,19 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     try {
         const getHistorySQLResult = await pool.query(
             `SELECT 
-                title, content, created_at 
+                g.title, h.content, h.created_at 
             FROM 
-                history
+                history h 
+            JOIN 
+                game g 
+            ON 
+                h.game_idx = g.idx 
             WHERE 
-                game_idx = $1
-            ORDER BY
-                created_at DESC
+                h.game_idx = $1 
+            ORDER BY 
+                created_at DESC 
             limit 
-                1`,
+                1;`,
             [gameIdx]
         );
         const history = getHistorySQLResult.rows;
