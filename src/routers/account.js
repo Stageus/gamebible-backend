@@ -18,22 +18,12 @@ router.post(
     '/auth',
     body('id')
         .trim()
-        .isAlphanumeric()
-        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
-        .isLength({ min: 4, max: 12 })
-        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+        .isLength({ min: 4, max: 20 })
+        .withMessage('아이디는 4자 이상 20자 이하로 해주세요.'),
     body('pw')
         .trim()
-        .isLength({ min: 8 })
-        .withMessage('비밀번호는 8자 이상이어야 합니다.')
-        .matches(/\d/)
-        .withMessage('비밀번호에는 숫자가 최소 1개 이상 포함되어야 합니다.')
-        .matches(/[a-z]/)
-        .withMessage('비밀번호에는 소문자가 최소 1개 이상 포함되어야 합니다.')
-        .matches(/[A-Z]/)
-        .withMessage('비밀번호에는 대문자가 최소 1개 이상 포함되어야 합니다.')
-        .matches(/[!@#$%^&*(),.?":{}|<>]/)
-        .withMessage('비밀번호에는 특수문자가 최소 1개 이상 포함되어야 합니다.'),
+        .isLength({ min: 8, max: 20 })
+        .withMessage('비밀번호는 8자 이상 20자 이하이어야 합니다.'),
     handleValidationErrors,
     async (req, res, next) => {
         const { id, pw } = req.body;
@@ -91,23 +81,13 @@ router.post(
     [
         body('id')
             .trim()
-            .isAlphanumeric()
-            .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
-            .isLength({ min: 4, max: 12 })
-            .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
-        body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+            .isLength({ min: 4, max: 20 })
+            .withMessage('아이디는 4자 이상 20자 이하로 해주세요.'),
         body('pw')
             .trim()
-            .isLength({ min: 8 })
-            .withMessage('비밀번호는 8자 이상이어야 합니다.')
-            .matches(/\d/)
-            .withMessage('비밀번호에는 숫자가 최소 1개 이상 포함되어야 합니다.')
-            .matches(/[a-z]/)
-            .withMessage('비밀번호에는 소문자가 최소 1개 이상 포함되어야 합니다.')
-            .matches(/[A-Z]/)
-            .withMessage('비밀번호에는 대문자가 최소 1개 이상 포함되어야 합니다.')
-            .matches(/[!@#$%^&*(),.?":{}|<>]/)
-            .withMessage('비밀번호에는 특수문자가 최소 1개 이상 포함되어야 합니다.'),
+            .isLength({ min: 8, max: 20 })
+            .withMessage('비밀번호는 8자 이상 20자 이하이어야 합니다.'),
+        body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
         body('pw_same')
             .trim()
             .custom((value, { req }) => {
@@ -118,8 +98,8 @@ router.post(
             }),
         body('nickname')
             .trim()
-            .isLength({ min: 2, max: 16 })
-            .withMessage('닉네임은 2자 이상 16자 이하로 해주세요.'),
+            .isLength({ min: 2, max: 20 })
+            .withMessage('닉네임은 2자 이상 20자 이하로 해주세요.'),
         handleValidationErrors,
     ],
     async (req, res, next) => {
@@ -171,10 +151,8 @@ router.post(
     '/id/check',
     body('id')
         .trim()
-        .isAlphanumeric()
-        .withMessage('아이디는 알파벳과 숫자만 사용할 수 있습니다.')
-        .isLength({ min: 4, max: 12 })
-        .withMessage('아이디는 4자 이상 12자 이하로 해주세요.'),
+        .isLength({ min: 4, max: 20 })
+        .withMessage('아이디는 4자 이상 20자 이하로 해주세요.'),
     handleValidationErrors,
     async (req, res, next) => {
         try {
@@ -212,8 +190,9 @@ router.post(
     '/nickname/check',
     body('nickname')
         .trim()
-        .isLength({ min: 2, max: 16 })
-        .withMessage('닉네임은 2자 이상 16자 이하로 해주세요.'),
+        .isLength({ min: 2, max: 20 })
+        .withMessage('닉네임은 2자 이상 20자 이하로 해주세요.'),
+    handleValidationErrors,
     async (req, res, next) => {
         try {
             const { nickname } = req.body;
@@ -245,6 +224,7 @@ router.post(
 router.post(
     '/email/check',
     body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    handleValidationErrors,
     async (req, res, next) => {
         try {
             const { email } = req.body;
@@ -357,6 +337,7 @@ router.get('/id', async (req, res, next) => {
 router.post(
     '/pw/email',
     body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    handleValidationErrors,
     async (req, res, next) => {
         const { email } = req.body;
 
@@ -374,16 +355,9 @@ router.put(
     '/pw',
     body('pw')
         .trim()
-        .isLength({ min: 8 })
-        .withMessage('비밀번호는 8자 이상이어야 합니다.')
-        .matches(/\d/)
-        .withMessage('비밀번호에는 숫자가 최소 1개 이상 포함되어야 합니다.')
-        .matches(/[a-z]/)
-        .withMessage('비밀번호에는 소문자가 최소 1개 이상 포함되어야 합니다.')
-        .matches(/[A-Z]/)
-        .withMessage('비밀번호에는 대문자가 최소 1개 이상 포함되어야 합니다.')
-        .matches(/[!@#$%^&*(),.?":{}|<>]/)
-        .withMessage('비밀번호에는 특수문자가 최소 1개 이상 포함되어야 합니다.'),
+        .isLength({ min: 8, max: 20 })
+        .withMessage('비밀번호는 8자 이상 20자 이하이어야 합니다.'),
+    handleValidationErrors,
     checkLogin,
     async (req, res, next) => {
         const { pw } = req.body;
@@ -441,8 +415,9 @@ router.put(
     body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
     body('nickname')
         .trim()
-        .isLength({ min: 2, max: 16 })
-        .withMessage('닉네임은 2자 이상 16자 이하로 해주세요.'),
+        .isLength({ min: 2, max: 20 })
+        .withMessage('닉네임은 2자 이상 20자 이하로 해주세요.'),
+    handleValidationErrors,
     async (req, res, next) => {
         const { userIdx } = req.decoded;
         const { nickname, email } = req.body;
