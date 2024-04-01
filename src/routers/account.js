@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 
@@ -271,10 +271,14 @@ router.post(
 );
 
 //이메일 인증 확인
-router.post('/email/auth', async (req, res, next) => {
-    try {
-        const { email, code } = req.body;
-        const checkEmailSql = `
+router.post(
+    '/email/auth',
+    body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        try {
+            const { email, code } = req.body;
+            const checkEmailSql = `
         SELECT
             * 
         FROM 
@@ -283,21 +287,26 @@ router.post('/email/auth', async (req, res, next) => {
             email = $1
         AND
             code = $2`;
-        const queryResult = await pool.query(checkEmailSql, [email, code]);
-        if (queryResult.rows.length == 0) {
-            return res.status(400).send('잘못된 인증 코드입니다.');
+            const queryResult = await pool.query(checkEmailSql, [email, code]);
+            if (queryResult.rows.length == 0) {
+                return res.status(400).send('잘못된 인증 코드입니다.');
+            }
+            return res.status(200).send('이메일 인증이 완료되었습니다.');
+        } catch (e) {
+            next(e);
         }
-        return res.status(200).send('이메일 인증이 완료되었습니다.');
-    } catch (e) {
-        next(e);
     }
-});
+);
 
 // 아이디 찾기
-router.get('/id', async (req, res, next) => {
-    const { email } = req.query;
-    try {
-        const findIdxSql = `
+router.get(
+    '/id',
+    query('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
+    handleValidationErrors,
+    async (req, res, next) => {
+        const { email } = req.query;
+        try {
+            const findIdxSql = `
         SELECT 
             idx 
         FROM 
@@ -306,13 +315,13 @@ router.get('/id', async (req, res, next) => {
             email = $1
         AND 
             deleted_at IS NULL`;
-        const findIdxvalue = [email];
-        const results = await pool.query(findIdxSql, findIdxvalue);
+            const findIdxvalue = [email];
+            const results = await pool.query(findIdxSql, findIdxvalue);
 
-        if (results.rows.length === 0) {
-            return res.status(400).send('일치하는 사용자가 없습니다.');
-        }
-        const findIdSql = `
+            if (results.rows.length === 0) {
+                return res.status(400).send('일치하는 사용자가 없습니다.');
+            }
+            const findIdSql = `
         SELECT 
             id 
         FROM 
@@ -320,18 +329,19 @@ router.get('/id', async (req, res, next) => {
         WHERE 
             user_idx = $1`;
 
-        const findIdValue = [results.rows[0].idx];
-        const idResults = await pool.query(findIdSql, findIdValue);
-        if (idResults.rows.length === 0) {
-            return res.status(400).send('일치하는 사용자가 없습니다.');
-        }
-        const foundId = idResults.rows[0].id;
+            const findIdValue = [results.rows[0].idx];
+            const idResults = await pool.query(findIdSql, findIdValue);
+            if (idResults.rows.length === 0) {
+                return res.status(400).send('일치하는 사용자가 없습니다.');
+            }
+            const foundId = idResults.rows[0].id;
 
-        return res.status(200).send({ id: foundId });
-    } catch (error) {
-        next(error);
+            return res.status(200).send({ id: foundId });
+        } catch (error) {
+            next(error);
+        }
     }
-});
+);
 
 //비밀번호 찾기(이메일 전송)
 router.post(
