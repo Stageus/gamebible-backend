@@ -104,8 +104,8 @@ router.get(
     async (req, res, next) => {
         const { page, title } = req.query;
         try {
-            //20개씩 불러오기
-            const offset = (page - 1) * 20;
+            //7개씩 불러오기
+            const offset = (page - 1) * 7;
             const data = await pool.query(
                 `
             SELECT 
@@ -179,7 +179,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             SELECT 
                 post.title, 
                 post.content,
-                post.created_at, 
+                post.created_at,
                 "user".nickname,
                 -- 조회수 불러오기
                 (
