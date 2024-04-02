@@ -398,7 +398,7 @@ router.post(
                 [historyIdx, location]
             );
 
-            res.status(200).send({ data: location });
+            res.status(200).send({ imgPath: location });
         } catch (e) {
             next(e);
         }
