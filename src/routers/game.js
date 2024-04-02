@@ -300,13 +300,13 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 
 //게임 수정하기
 router.put(
-    '/:gameidx/wiki',
+    '/:gameidx/wiki/:historyidx',
     checkLogin,
     body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
+        const historyIdx = req.params.historyidx;
         const gameIdx = req.params.gameidx;
-        const { userIdx } = req.decoded;
         const { content } = req.body;
 
         let poolClient = null;
@@ -337,11 +337,13 @@ router.put(
 
             // 새로운 히스토리 등록
             await poolClient.query(
-                `INSERT INTO 
-                    history(game_idx, user_idx, content)
-                VALUES 
-                    ($1, $2, $3)`,
-                [gameIdx, userIdx, content]
+                `UPDATE  
+                    history
+                SET
+                    content = $1, created_at = now()
+                WHERE
+                    idx = $2`,
+                [content, historyIdx]
             );
 
             await poolClient.query(`COMMIT`);
