@@ -374,7 +374,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         const history = queryResult.rows[0];
         const historyIdx = history.idx;
         console.log('historyIdx', historyIdx);
-        res.status(201).send({ historyIdx: historyIdx });
+        res.status(201).send({ data: historyIdx });
     } catch (e) {
         next(e);
     }
@@ -397,7 +397,7 @@ router.post(
                 [historyIdx, location]
             );
 
-            res.status(200).send({ imgPath: location });
+            res.status(200).send({ data: location });
         } catch (e) {
             next(e);
         }
