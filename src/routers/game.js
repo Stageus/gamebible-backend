@@ -5,6 +5,7 @@ const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification } = require('../modules/generateNotification');
+const { uploadS3 } = require('../middlewares/upload');
 
 //게임생성요청
 router.post(
@@ -372,10 +373,34 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         const history = queryResult.rows[0];
         const historyIdx = history.idx;
         console.log('historyIdx', historyIdx);
-        res.status(201).send({ historyIdx: historyIdx });
+        res.status(201).send({ data: historyIdx });
     } catch (e) {
         next(e);
     }
 });
+// 위키 이미지 업로드
+router.post(
+    '/:gameidx/wiki/:historyidx/image',
+    checkLogin,
+    uploadS3.array('images', 1),
+    async (req, res, next) => {
+        const historyIdx = req.params.historyidx;
+        try {
+            const location = req.files[0].location;
+            console.log(location);
+
+            await pool.query(
+                `INSERT INTO
+                    game_img( history_idx, img_path )
+                VALUES ( $1, $2 ) `,
+                [historyIdx, location]
+            );
+
+            res.status(200).send({ data: location });
+        } catch (e) {
+            next(e);
+        }
+    }
+);
 
 module.exports = router;
