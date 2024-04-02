@@ -350,7 +350,6 @@ router.put(
 
             res.status(200).send();
         } catch (e) {
-            console.log('에러발생');
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
