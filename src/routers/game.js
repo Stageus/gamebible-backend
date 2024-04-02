@@ -355,5 +355,27 @@ router.put(
         }
     }
 );
+// 임시위키생성
+router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    const { userIdx } = req.decoded;
+    try {
+        const queryResult = await pool.query(
+            `INSERT INTO 
+                history(game_idx, user_idx, created_at)
+            VALUES
+                ( $1, $2, null)
+            RETURNING
+                idx`,
+            [gameIdx, userIdx]
+        );
+        const history = queryResult.rows[0];
+        const historyIdx = history.idx;
+        console.log('historyIdx', historyIdx);
+        res.status(201).send({ historyIdx: historyIdx });
+    } catch (e) {
+        next(e);
+    }
+});
 
 module.exports = router;
