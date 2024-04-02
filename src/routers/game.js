@@ -5,6 +5,7 @@ const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification } = require('../modules/generateNotification');
+const { uploadS3 } = require('../middlewares/upload');
 
 //게임생성요청
 router.post(
@@ -299,13 +300,13 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 
 //게임 수정하기
 router.put(
-    '/:gameidx/wiki',
+    '/:gameidx/wiki/:historyidx',
     checkLogin,
     body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
+        const historyIdx = req.params.historyidx;
         const gameIdx = req.params.gameidx;
-        const { userIdx } = req.decoded;
         const { content } = req.body;
 
         let poolClient = null;
@@ -336,22 +337,69 @@ router.put(
 
             // 새로운 히스토리 등록
             await poolClient.query(
-                `INSERT INTO 
-                    history(game_idx, user_idx, content)
-                VALUES 
-                    ($1, $2, $3)`,
-                [gameIdx, userIdx, content]
+                `UPDATE  
+                    history
+                SET
+                    content = $1, created_at = now()
+                WHERE
+                    idx = $2`,
+                [content, historyIdx]
             );
 
             await poolClient.query(`COMMIT`);
 
             res.status(200).send();
         } catch (e) {
-            console.log('에러발생');
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
             if (poolClient) poolClient.release();
+        }
+    }
+);
+// 임시위키생성
+router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    const { userIdx } = req.decoded;
+    try {
+        const queryResult = await pool.query(
+            `INSERT INTO 
+                history(game_idx, user_idx, created_at)
+            VALUES
+                ( $1, $2, null)
+            RETURNING
+                idx`,
+            [gameIdx, userIdx]
+        );
+        const history = queryResult.rows[0];
+        const historyIdx = history.idx;
+        console.log('historyIdx', historyIdx);
+        res.status(201).send({ data: historyIdx });
+    } catch (e) {
+        next(e);
+    }
+});
+// 위키 이미지 업로드
+router.post(
+    '/:gameidx/wiki/:historyidx/image',
+    checkLogin,
+    uploadS3.array('images', 1),
+    async (req, res, next) => {
+        const historyIdx = req.params.historyidx;
+        try {
+            const location = req.files[0].location;
+            console.log(location);
+
+            await pool.query(
+                `INSERT INTO
+                    game_img( history_idx, img_path )
+                VALUES ( $1, $2 ) `,
+                [historyIdx, location]
+            );
+
+            res.status(200).send({ data: location });
+        } catch (e) {
+            next(e);
         }
     }
 );
