@@ -49,8 +49,8 @@ router.get('/', async (req, res, next) => {
     const page = req.query.page;
     const gameIdx = req.query.gameidx;
     try {
-        //7개씩 불러오기
-        const offset = (page - 1) * 7;
+        //20개씩 불러오기
+        const offset = (page - 1) * 20;
         const data = await pool.query(
             `
             SELECT 
@@ -79,7 +79,7 @@ router.get('/', async (req, res, next) => {
             ORDER BY
                 post.idx DESC
             LIMIT
-                7
+                20
             OFFSET
                 $2`,
             [gameIdx, offset]
