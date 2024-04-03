@@ -6,7 +6,35 @@ const { body, query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 
 //Apis
-//게시글 쓰기
+//게시글 임시작성
+router.post('/', checkLogin, async (req, res, next) => {
+    const { title, content } = req.body;
+    const gameIdx = req.query.gameidx;
+    const userIdx = req.decoded.userIdx;
+    try {
+        const data = await pool.query(
+            `INSERT INTO
+                post(
+                    user_idx,
+                    game_idx,
+                    title,
+                    content,
+                    created_at
+                )
+            VALUES
+                ($1, $2, $3, $4, null)
+            RETURNING
+                idx`,
+            [userIdx, gameIdx, title, content]
+        );
+        const postIdx = data.rows[0].idx;
+        res.status(201).send({ data: postIdx });
+    } catch (err) {
+        next(err);
+    }
+});
+
+//게시글 업로드
 //이 api는 프론트와 상의 후 수정하기로..
 router.post(
     '/',
