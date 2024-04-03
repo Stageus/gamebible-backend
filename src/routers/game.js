@@ -4,7 +4,7 @@ const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
-const { generateNotification } = require('../modules/generateNotification');
+const { generateNotification, generateNotifications } = require('../modules/generateNotification');
 const { uploadS3 } = require('../middlewares/upload');
 
 //게임생성요청
@@ -326,14 +326,12 @@ router.put(
             );
             let historyUserList = historyUserSQLResult.rows;
 
-            for (let i = 0; i < historyUserList.length; i++) {
-                await generateNotification({
-                    conn: poolClient,
-                    type: 'MODIFY_GAME',
-                    gameIdx: gameIdx,
-                    toUserIdx: historyUserList[i].user_idx,
-                });
-            }
+            await generateNotifications({
+                conn: poolClient,
+                type: 'MODIFY_GAME',
+                gameIdx: gameIdx,
+                toUserIdx: historyUserList.map((elem) => elem.user_idx),
+            });
 
             // 새로운 히스토리 등록
             await poolClient.query(
