@@ -85,7 +85,8 @@ router.get('/', async (req, res, next) => {
             `
             SELECT 
                 post.title, 
-                post.created_at, 
+                post.created_at,
+                post.idx,
                 "user".nickname,
                 COUNT(*) OVER() AS totalposts,
                 -- 조회수
