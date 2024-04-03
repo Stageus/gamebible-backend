@@ -57,6 +57,7 @@ router.get('/', async (req, res, next) => {
                 post.title, 
                 post.created_at, 
                 "user".nickname,
+                COUNT(*) OVER() AS totalposts,
                 -- 조회수
                 (
                     SELECT
@@ -84,11 +85,12 @@ router.get('/', async (req, res, next) => {
                 $2`,
             [gameIdx, offset]
         );
+        const totalPosts = data.rows[0].totalposts;
         const length = data.rows.length;
         res.status(200).send({
             data: data.rows,
             page,
-            offset,
+            totalPosts,
             length,
         });
     } catch (err) {
