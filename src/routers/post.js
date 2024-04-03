@@ -8,7 +8,6 @@ const { handleValidationErrors } = require('../middlewares/validator');
 //Apis
 //게시글 임시작성
 router.post('/', checkLogin, async (req, res, next) => {
-    const { title, content } = req.body;
     const gameIdx = req.query.gameidx;
     const userIdx = req.decoded.userIdx;
     try {
@@ -17,15 +16,13 @@ router.post('/', checkLogin, async (req, res, next) => {
                 post(
                     user_idx,
                     game_idx,
-                    title,
-                    content,
                     created_at
                 )
             VALUES
-                ($1, $2, $3, $4, null)
+                ($1, $2, null)
             RETURNING
                 idx`,
-            [userIdx, gameIdx, title, content]
+            [userIdx, gameIdx]
         );
         const postIdx = data.rows[0].idx;
         res.status(201).send({ data: postIdx });
