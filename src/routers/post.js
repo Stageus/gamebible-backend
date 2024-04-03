@@ -100,8 +100,6 @@ router.get('/', async (req, res, next) => {
                 ) AS view
             FROM 
                 post
-            LEFT JOIN
-                view ON post.idx = view.post_idx
             JOIN
                 "user" ON post.user_idx = "user".idx
             WHERE
