@@ -281,7 +281,9 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
             ON 
                 h.game_idx = g.idx 
             WHERE 
-                h.game_idx = $1 
+                h.game_idx = $1
+            AND
+                h.created_at IS NOT NULL 
             ORDER BY 
                 created_at DESC 
             limit 
