@@ -45,20 +45,21 @@ router.post(
     async (req, res, next) => {
         const { title, content } = req.body;
         const postIdx = req.params.postidx;
-        const gameIdx = req.query.gameidx;
-        const userIdx = req.decoded.userIdx;
         try {
-            await pool.query(
+            const result = await pool.query(
                 `
                 UPDATE
                     post
                 SET
                     title = $1, content = $2, created_at = now()
                 WHERE
-                    idx = $3`,
+                    idx = $3
+                RETURNING
+                    game_idx`,
                 [title, content, postIdx]
             );
-            res.status(200).send();
+            const gameIdx = result.rows[0];
+            res.status(200).send({ data: gameIdx });
         } catch (err) {
             next(err);
         }
@@ -225,6 +226,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             [postIdx]
         );
         const result = data.rows;
+        console.log();
         res.status(200).send({
             data: result,
         });
