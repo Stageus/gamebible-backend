@@ -207,6 +207,8 @@ router.get('/:gameidx/history', async (req, res, next) => {
                 h.user_idx = u.idx
             WHERE 
                 game_idx = $1
+            AND
+                h.created_at IS NOT NULL
             ORDER BY
                 h.created_at DESC`,
             [gameIdx]
