@@ -6,10 +6,38 @@ const { body, query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 
 //Apis
-//게시글 쓰기
+//게시글 임시작성
+router.post('/', checkLogin, async (req, res, next) => {
+    const { title, content } = req.body;
+    const gameIdx = req.query.gameidx;
+    const userIdx = req.decoded.userIdx;
+    try {
+        const data = await pool.query(
+            `INSERT INTO
+                post(
+                    user_idx,
+                    game_idx,
+                    title,
+                    content,
+                    created_at
+                )
+            VALUES
+                ($1, $2, $3, $4, null)
+            RETURNING
+                idx`,
+            [userIdx, gameIdx, title, content]
+        );
+        const postIdx = data.rows[0].idx;
+        res.status(201).send({ data: postIdx });
+    } catch (err) {
+        next(err);
+    }
+});
+
+//게시글 업로드
 //이 api는 프론트와 상의 후 수정하기로..
 router.post(
-    '/',
+    '/:postidx',
     checkLogin,
     body('title').trim().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자로 입력해주세요'),
     body('content')
@@ -19,23 +47,25 @@ router.post(
     handleValidationErrors,
     async (req, res, next) => {
         const { title, content } = req.body;
+        const postIdx = req.params.postidx;
         const gameIdx = req.query.gameidx;
         const userIdx = req.decoded.userIdx;
         try {
             await pool.query(
                 `
-                INSERT INTO
+                UPDATE
                     post(
                         user_idx,
                         game_idx,
                         title,
                         content
-                    )
-                VALUES
-                    ($1, $2, $3, $4)`,
-                [userIdx, gameIdx, title, content]
+                SET
+                    title = $1, content = $2, created_at = now()
+                WHERE
+                    idx = $3`,
+                [title, content, postIdx]
             );
-            res.status(201).send();
+            res.status(200).send();
         } catch (err) {
             next(err);
         }
@@ -55,7 +85,8 @@ router.get('/', async (req, res, next) => {
             `
             SELECT 
                 post.title, 
-                post.created_at, 
+                post.created_at,
+                post.idx,
                 "user".nickname,
                 COUNT(*) OVER() AS totalposts,
                 -- 조회수
