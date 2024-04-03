@@ -8,27 +8,23 @@ const { handleValidationErrors } = require('../middlewares/validator');
 //Apis
 //게시글 임시작성
 router.post('/', checkLogin, async (req, res, next) => {
-    const { title, content } = req.body;
     const gameIdx = req.query.gameidx;
     const userIdx = req.decoded.userIdx;
     try {
-        const data = await pool.query(
+        const result = await pool.query(
             `INSERT INTO
                 post(
                     user_idx,
                     game_idx,
-                    title,
-                    content,
                     created_at
                 )
             VALUES
-                ($1, $2, $3, $4, null)
+                ($1, $2, null)
             RETURNING
                 idx`,
-            [userIdx, gameIdx, title, content]
+            [userIdx, gameIdx]
         );
-        const postIdx = data.rows[0].idx;
-        res.status(201).send({ data: postIdx });
+        res.status(201).send({ data: result.rows[0] });
     } catch (err) {
         next(err);
     }
@@ -48,24 +44,20 @@ router.post(
     async (req, res, next) => {
         const { title, content } = req.body;
         const postIdx = req.params.postidx;
-        const gameIdx = req.query.gameidx;
-        const userIdx = req.decoded.userIdx;
         try {
-            await pool.query(
+            const result = await pool.query(
                 `
                 UPDATE
-                    post(
-                        user_idx,
-                        game_idx,
-                        title,
-                        content
+                    post
                 SET
                     title = $1, content = $2, created_at = now()
                 WHERE
-                    idx = $3`,
+                    idx = $3
+                RETURNING
+                    game_idx`,
                 [title, content, postIdx]
             );
-            res.status(200).send();
+            res.status(200).send({ data: result.rows[0] });
         } catch (err) {
             next(err);
         }
@@ -81,7 +73,7 @@ router.get('/', async (req, res, next) => {
     try {
         //20개씩 불러오기
         const offset = (page - 1) * 20;
-        const data = await pool.query(
+        const result = await pool.query(
             `
             SELECT 
                 post.title, 
@@ -114,10 +106,10 @@ router.get('/', async (req, res, next) => {
                 $2`,
             [gameIdx, offset]
         );
-        const totalPosts = data.rows[0].totalposts;
-        const length = data.rows.length;
+        const totalPosts = result.rows[0].totalposts;
+        const length = result.rows.length;
         res.status(200).send({
-            data: data.rows,
+            data: result.rows,
             page,
             totalPosts,
             length,
@@ -137,7 +129,7 @@ router.get(
         try {
             //7개씩 불러오기
             const offset = (page - 1) * 7;
-            const data = await pool.query(
+            const result = await pool.query(
                 `
             SELECT 
                 post.title, 
@@ -170,9 +162,9 @@ router.get(
                 $1`,
                 [offset]
             );
-            const length = data.rows.length;
+            const length = result.rows.length;
             res.status(200).send({
-                data: data.rows,
+                data: result.rows,
                 page,
                 offset,
                 length,
@@ -205,7 +197,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             [postIdx, userIdx]
         );
 
-        const data = await poolClient.query(
+        const result = await poolClient.query(
             `
             SELECT 
                 post.title, 
@@ -231,9 +223,8 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.deleted_at IS NULL`,
             [postIdx]
         );
-        const result = data.rows;
         res.status(200).send({
-            data: result,
+            data: result.rows[0],
         });
         await poolClient.query('COMMIT');
     } catch (err) {
