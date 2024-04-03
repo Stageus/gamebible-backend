@@ -370,9 +370,8 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
 
         const temporaryHistory = makeTemporaryHistorySQLResult.rows[0];
         const temporaryHistoryIdx = temporaryHistory.idx;
-        console.log('temporaryHistoryIdx: ', temporaryHistoryIdx);
 
-        const getHistorySQLResult = await pool.query(
+        const getLatestHistorySQLResult = await pool.query(
             `SELECT 
                 g.title, h.content
             FROM 
@@ -382,16 +381,24 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
             ON 
                 h.game_idx = g.idx 
             WHERE 
-                h.game_idx = $1 
+                h.game_idx = $1
+            AND
+                h.created_at IS NOT NULL 
             ORDER BY 
-                created_at DESC 
+                h.created_at DESC 
             limit 
                 1;`,
             [gameIdx]
         );
-        const latestHistory = getHistorySQLResult.rows;
+        const latestHistory = getLatestHistorySQLResult.rows[0];
 
-        res.status(201).send({ data: { historyIdx: temporaryHistoryIdx, content: content } });
+        res.status(201).send({
+            data: {
+                historyIdx: temporaryHistoryIdx,
+                title: latestHistory.title,
+                content: latestHistory.content,
+            },
+        });
     } catch (e) {
         next(e);
     }
