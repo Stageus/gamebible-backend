@@ -207,6 +207,8 @@ router.get('/:gameidx/history', async (req, res, next) => {
                 h.user_idx = u.idx
             WHERE 
                 game_idx = $1
+            AND
+                h.created_at IS NOT NULL
             ORDER BY
                 h.created_at DESC`,
             [gameIdx]
@@ -281,7 +283,9 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
             ON 
                 h.game_idx = g.idx 
             WHERE 
-                h.game_idx = $1 
+                h.game_idx = $1
+            AND
+                h.created_at IS NOT NULL 
             ORDER BY 
                 created_at DESC 
             limit 
@@ -358,7 +362,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     const { userIdx } = req.decoded;
     try {
-        const queryResult = await pool.query(
+        const makeTemporaryHistorySQLResult = await pool.query(
             `INSERT INTO 
                 history(game_idx, user_idx, created_at)
             VALUES
@@ -367,9 +371,38 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
                 idx`,
             [gameIdx, userIdx]
         );
-        const history = queryResult.rows[0];
-        const historyIdx = history.idx;
-        res.status(201).send({ data: historyIdx });
+
+        const temporaryHistory = makeTemporaryHistorySQLResult.rows[0];
+        const temporaryHistoryIdx = temporaryHistory.idx;
+
+        const getLatestHistorySQLResult = await pool.query(
+            `SELECT 
+                g.title, h.content
+            FROM 
+                history h 
+            JOIN 
+                game g 
+            ON 
+                h.game_idx = g.idx 
+            WHERE 
+                h.game_idx = $1
+            AND
+                h.created_at IS NOT NULL 
+            ORDER BY 
+                h.created_at DESC 
+            limit 
+                1;`,
+            [gameIdx]
+        );
+        const latestHistory = getLatestHistorySQLResult.rows[0];
+
+        res.status(201).send({
+            data: {
+                historyIdx: temporaryHistoryIdx,
+                title: latestHistory.title,
+                content: latestHistory.content,
+            },
+        });
     } catch (e) {
         next(e);
     }
