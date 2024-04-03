@@ -51,11 +51,7 @@ router.post(
             await pool.query(
                 `
                 UPDATE
-                    post(
-                        user_idx,
-                        game_idx,
-                        title,
-                        content
+                    post
                 SET
                     title = $1, content = $2, created_at = now()
                 WHERE
