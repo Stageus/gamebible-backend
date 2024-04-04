@@ -76,10 +76,10 @@ router.get('/', async (req, res, next) => {
         const result = await pool.query(
             `
             SELECT 
-                post.idx,
+                post.idx AS post_idx,
                 post.title,
                 post.created_at,
-                "user".idx AS useridx,
+                "user".idx AS user_idx,
                 "user".nickname,
                 -- 조회수
                 (
@@ -142,10 +142,10 @@ router.get(
             const result = await pool.query(
                 `
             SELECT 
-                post.idx,
+                post.idx AS post_idx,
                 post.title, 
                 post.created_at,
-                "user".idx AS useridx,
+                "user".idx AS user_idx,
                 "user".nickname,
                 -- 조회수
                 (
@@ -215,7 +215,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.content,
                 post.created_at,
                 post.game_idx,
-                "user".idx AS useridx,
+                "user".idx AS user_idx,
                 "user".nickname,
                 -- 조회수 불러오기
                 (
