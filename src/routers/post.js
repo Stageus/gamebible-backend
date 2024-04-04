@@ -90,7 +90,7 @@ router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (r
 //페이지네이션
 //deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자
 router.get('/', async (req, res, next) => {
-    const page = parseInt(req.query.page);
+    const page = parseInt(req.query.page) || 1;
     const gameIdx = req.query.gameidx;
     try {
         // totalposts를 가져오는 별도의 쿼리
@@ -106,9 +106,9 @@ router.get('/', async (req, res, next) => {
             [gameIdx]
         );
         //20개씩 불러오기
-        const offset = (page - 1) * 20;
-        const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / 20);
-        console.log(totalPostsResult.rows[0].totalPosts);
+        const postsPerPage = 20;
+        const offset = (page - 1) * postsPerPage;
+        const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / postsPerPage);
         const result = await pool.query(
             `SELECT 
                 post.idx AS "postIdx",
@@ -136,10 +136,10 @@ router.get('/', async (req, res, next) => {
             ORDER BY
                 post.idx DESC
             LIMIT
-                20
+                $2
             OFFSET
-                $2`,
-            [gameIdx, offset]
+                $3`,
+            [gameIdx, postsPerPage, offset]
         );
         res.status(200).send({
             data: result.rows,
