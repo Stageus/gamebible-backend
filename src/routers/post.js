@@ -203,6 +203,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.title, 
                 post.content,
                 post.created_at,
+                post.game_idx,
                 "user".nickname,
                 -- 조회수 불러오기
                 (
