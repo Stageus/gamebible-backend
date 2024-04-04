@@ -30,11 +30,10 @@ router.post(
     async (req, res, next) => {
         const { id, pw } = req.body;
         try {
-            console.log(id, pw);
             // 사용자 정보 조회 (비밀번호는 해시된 상태로 저장되어 있음)
             const userQuery = `
             SELECT
-                al.pw, u.is_admin, u.deleted_at, al.user_idx
+            *
             FROM
                 account_local al
             JOIN
@@ -51,7 +50,6 @@ router.post(
             }
 
             const user = userRows[0];
-
             // bcrypt.compare 함수로 비밀번호 비교
             const match = await bcrypt.compare(pw, user.pw);
 
@@ -71,7 +69,7 @@ router.post(
                 }
             );
 
-            res.status(200).send({ message: '로그인 성공', token: token });
+            res.status(200).send({ message: '로그인 성공', token: token, data: user });
         } catch (e) {
             next(e);
         }
@@ -691,6 +689,128 @@ router.delete('/notification/:notificationId', checkLogin, async (req, res, next
         res.status(200).send(notificationId + '번 알람이 삭제되었습니다.');
     } catch (error) {
         next(error);
+    }
+});
+
+//카카오 로그인 경로 주기
+router.get('/auth/kakao', (req, res, next) => {
+    const kakao = process.env.KAKAO_LOGIN_AUTH;
+    res.redirect(kakao);
+});
+
+//카카오톡 회원가입(access토큰 받기)
+router.get('/kakao/callback', async (req, res, next) => {
+    const { code } = req.query;
+    REST_API_KEY = process.env.REST_API_KEY;
+    REDIRECT_URI = process.env.REDIRECT_URI;
+    const tokenRequestData = {
+        grant_type: 'authorization_code',
+        client_id: REST_API_KEY,
+        redirect_uri: REDIRECT_URI,
+        code,
+    };
+
+    try {
+        // tokenRequestData 객체를 URLSearchParams로 변환
+        const params = new URLSearchParams();
+        Object.keys(tokenRequestData).forEach((key) => {
+            params.append(key, tokenRequestData[key]);
+        });
+
+        console.log(params.toString());
+        // Axios POST 요청
+        const { data } = await axios.post(
+            'https://kauth.kakao.com/oauth/token',
+            params.toString(), // URLSearchParams 객체를 문자열로 변환
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }
+        );
+
+        console.log(data); // 응답 데이터 로깅
+        console.log('되는거냐고요 예?');
+        res.send(data); // 클라이언트에 응답 데이터 전송
+    } catch (error) {
+        next(error);
+    }
+});
+
+//카카오톡 토큰 정보 보기(access토큰)->쌉 필요없는거엿고
+router.get('/kakao/token_info', async (req, res, next) => {
+    const { ACCESS_TOKEN } = req.query;
+    const config = {
+        headers: {
+            Authorization: `Bearer ${ACCESS_TOKEN}`,
+        },
+    };
+
+    try {
+        const response = await axios.get(
+            'https://kapi.kakao.com/v1/user/access_token_info',
+            config
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error(`에러 발생: ${error}`);
+        res.status(500).send('서버 에러');
+    }
+});
+
+//카카오톡 회원 정보 보기(access토큰)
+router.get('/kakao/user_info', async (req, res, next) => {
+    const { ACCESS_TOKEN } = req.query;
+    const config = {
+        headers: {
+            Authorization: `Bearer ${ACCESS_TOKEN}`,
+        },
+    };
+
+    try {
+        const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
+        res.json(response.data);
+    } catch (error) {
+        next(error);
+    }
+});
+
+//카카오톡 회원 정보 보기(ID토큰)
+router.post('/kakao/id-token', async (req, res, next) => {
+    const { ID_TOKEN } = req.body; // 클라이언트로부터 ID_TOKEN 받기
+
+    try {
+        const response = await axios.post(
+            'https://kauth.kakao.com/oauth/tokeninfo',
+            `id_token=${ID_TOKEN}`
+        );
+        res.send({ data: response.data });
+    } catch (error) {
+        next(error);
+    }
+});
+
+//카카오톡 탈퇴
+router.post('/unlinkKakaoUser', async (req, res) => {
+    const accessToken = req.body.accessToken;
+
+    const config = {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Bearer ${accessToken}`,
+        },
+    };
+
+    try {
+        const response = await axios.post('https://kapi.kakao.com/v1/user/unlink', {}, config);
+        return res.json(response.data);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: '사용자 연동 해제 실패',
+            error: error,
+        });
     }
 });
 
