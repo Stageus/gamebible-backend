@@ -22,7 +22,7 @@ router.post('/', checkLogin, async (req, res, next) => {
             VALUES
                 ($1, $2, null)
             RETURNING
-                idx`,
+                idx AS "postIdx"`,
             [userIdx, gameIdx]
         );
         res.status(201).send({ data: result.rows[0] });
@@ -55,7 +55,7 @@ router.post(
                 WHERE
                     idx = $3
                 RETURNING
-                    game_idx`,
+                    game_idx AS "gameIdx"`,
                 [title, content, postIdx]
             );
             res.status(200).send({ data: result.rows[0] });
@@ -99,10 +99,10 @@ router.get('/', async (req, res, next) => {
         const result = await pool.query(
             `
             SELECT 
-                post.idx AS post_idx,
+                post.idx AS "postIdx",
                 post.title,
-                post.created_at,
-                "user".idx AS user_idx,
+                post.created_at AS "createdAt",
+                "user".idx AS "userIdx",
                 "user".nickname,
                 -- 조회수
                 (
@@ -123,7 +123,7 @@ router.get('/', async (req, res, next) => {
                         game_idx = $1
                     AND 
                         deleted_at IS NULL
-                ) AS totalposts
+                ) AS "totalPosts"
             FROM
                 post
             JOIN
@@ -144,7 +144,7 @@ router.get('/', async (req, res, next) => {
         res.status(200).send({
             data: result.rows,
             page,
-            totalPosts: result.rows[0].totalposts,
+            totalPosts: result.rows[0].totalPosts,
             length,
         });
     } catch (err) {
@@ -165,10 +165,10 @@ router.get(
             const result = await pool.query(
                 `
             SELECT 
-                post.idx AS post_idx,
+                post.idx AS postIdx,
                 post.title, 
-                post.created_at,
-                "user".idx AS user_idx,
+                post.created_at AS "createdAt",
+                "user".idx AS "userIdx",
                 "user".nickname,
                 -- 조회수
                 (
@@ -237,8 +237,8 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             SELECT 
                 post.title, 
                 post.content,
-                post.created_at,
-                post.game_idx,
+                post.created_at AS "createdAt",
+                post.game_idx AS "gameIdx",
                 "user".idx AS "userIdx",
                 "user".nickname,
                 -- 조회수 불러오기
