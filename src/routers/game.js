@@ -152,8 +152,20 @@ router.get('/popular', async (req, res, next) => {
         );
         const popularGameList = popularSelectSQLResult.rows;
 
+        const totalGamesQueryResult = await pool.query(`
+            SELECT
+                count(*)
+            FROM
+                game g
+            WHERE
+                deleted_at IS NULL    
+        `);
+        const totalGamesNumber = totalGamesQueryResult.rows[0].count;
+        const maxPage = Math.ceil((totalGamesNumber - 19) / 16) + 1;
+
         res.status(200).send({
             data: {
+                maxPage: maxPage,
                 page: page,
                 skip: skip,
                 count: popularGameList.length,
