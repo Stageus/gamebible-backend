@@ -215,6 +215,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
     let poolClient;
     try {
         const userIdx = req.decoded.userIdx;
+        let isAuthor = false;
         poolClient = await pool.connect();
         await poolClient.query('BEGIN');
 
@@ -238,7 +239,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.content,
                 post.created_at,
                 post.game_idx,
-                "user".idx AS user_idx,
+                "user".idx AS "userIdx",
                 "user".nickname,
                 -- 조회수 불러오기
                 (
@@ -259,8 +260,12 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.deleted_at IS NULL`,
             [postIdx]
         );
+        if (userIdx == result.rows[0].user_idx) {
+            isAuthor = true;
+        }
         res.status(200).send({
             data: result.rows[0],
+            isAuthor: isAuthor,
         });
         await poolClient.query('COMMIT');
     } catch (err) {
