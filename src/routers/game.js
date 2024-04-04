@@ -41,7 +41,7 @@ router.get('/', async (req, res, next) => {
     try {
         const gameSelectSQLResult = await pool.query(
             `SELECT 
-                *
+                idx, user_idx AS "userIdx", title, created_at AS "createdAt"
             FROM 
                 game
             WHERE 
