@@ -382,7 +382,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
 
         const temporaryHistory = makeTemporaryHistorySQLResult.rows[0];
         const temporaryHistoryIdx = temporaryHistory.idx;
-
+        //기존 게임내용 불러오기
         const getLatestHistorySQLResult = await pool.query(
             `SELECT 
                 g.title, h.content
