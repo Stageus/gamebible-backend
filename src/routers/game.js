@@ -252,11 +252,15 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
         const getHistorySQLResult = await pool.query(
             `
             SELECT    
-                * 
+                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", content, h.created_at AS "createdAt", u.nickname 
             FROM 
-                history
+                history h
+            JOIN
+                "user" u
+            ON
+                h.user_idx = u.idx
             WHERE 
-                idx = $1
+                h.idx = $1
             AND 
                 game_idx = $2`,
             [historyIdx, gameIdx]
