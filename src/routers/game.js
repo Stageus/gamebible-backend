@@ -275,13 +275,17 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     try {
         const getHistorySQLResult = await pool.query(
             `SELECT 
-                g.title, h.content, h.created_at 
+                g.title, u.nickname, h.content, h.created_at 
             FROM 
                 history h 
             JOIN 
                 game g 
             ON 
-                h.game_idx = g.idx 
+                h.game_idx = g.idx
+            JOIN
+                "user" u
+            ON
+                u.idx = h.user_idx
             WHERE 
                 h.game_idx = $1
             AND
