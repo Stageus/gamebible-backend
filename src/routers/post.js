@@ -159,48 +159,63 @@ router.get(
     '/search',
     query('title').trim().isLength({ min: 2 }).withMessage('2글자 이상입력해주세요'),
     async (req, res, next) => {
-        const { page, title } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const title = req.query.title;
         try {
+            // totalposts를 가져오는 별도의 쿼리
+            const totalPostsResult = await pool.query(
+                `SELECT
+                    COUNT(*)::int AS "totalPosts"
+                FROM
+                    post
+                WHERE
+                    post.title LIKE '%' ||$1|| '%'
+                AND 
+                    deleted_at IS NULL`,
+                [title]
+            );
             //7개씩 불러오기
-            const offset = (page - 1) * 7;
+            const postsPerPage = 7;
+            const offset = (page - 1) * postsPerPage;
+            const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / postsPerPage);
             const result = await pool.query(
-                `
-            SELECT 
-                post.idx AS postIdx,
-                post.title, 
-                post.created_at AS "createdAt",
-                "user".idx AS "userIdx",
-                "user".nickname,
-                -- 조회수
-                (
-                    SELECT
-                        COUNT(*)::int
-                    FROM
-                        view
-                    WHERE
-                        post_idx = post.idx 
-                ) AS view
-            FROM 
-                post 
-            LEFT JOIN
-                view ON post.idx = view.post_idx
-            JOIN 
-                "user" ON post.user_idx = "user".idx
-            WHERE
-                post.title LIKE '%${title}%'
-            AND 
-                post.deleted_at IS NULL
-            ORDER BY
-                post.idx DESC
-            LIMIT
-                7
-            OFFSET
-                $1`,
-                [offset]
+                `SELECT 
+                    post.idx AS postIdx,
+                    post.title,
+                    post.created_at AS "createdAt",
+                    "user".idx AS "userIdx",
+                    "user".nickname,
+                    -- 조회수
+                    (
+                        SELECT
+                            COUNT(*)::int
+                        FROM
+                            view
+                        WHERE
+                            post_idx = post.idx 
+                    ) AS view
+                FROM 
+                    post 
+                LEFT JOIN
+                    view ON post.idx = view.post_idx
+                JOIN 
+                    "user" ON post.user_idx = "user".idx
+                WHERE
+                    post.title LIKE '%' ||$1|| '%'
+                AND 
+                    post.deleted_at IS NULL
+                ORDER BY
+                    post.idx DESC
+                LIMIT
+                    $2
+                OFFSET
+                    $3`,
+                [postsPerPage, offset]
             );
             res.status(200).send({
                 data: result.rows,
                 page,
+                maxPage,
                 offset,
                 length: result.rows.length,
             });
