@@ -198,7 +198,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
         const selectHistorySQLResult = await pool.query(
             `
             SELECT 
-                h.idx, h.created_at, u.nickname
+                h.idx, h.created_at AS "createdAt", u.nickname
             FROM 
                 history h 
             JOIN 
@@ -226,7 +226,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
         beforeHistoryList.forEach((element) => {
             history = {};
             idx = element.idx;
-            timeStamp = element.created_at;
+            timeStamp = element.createdAt;
             nickname = element.nickname;
             createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
 
