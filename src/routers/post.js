@@ -76,11 +76,11 @@ router.get('/', async (req, res, next) => {
         const result = await pool.query(
             `
             SELECT 
-                post.title, 
-                post.created_at,
                 post.idx,
+                post.title,
+                post.created_at,
+                "user".idx AS useridx,
                 "user".nickname,
-                COUNT(*) OVER() AS totalposts,
                 -- 조회수
                 (
                     SELECT
@@ -89,8 +89,19 @@ router.get('/', async (req, res, next) => {
                         view
                     WHERE
                         post_idx = post.idx
-                ) AS view
-            FROM 
+                ) AS view,
+                -- 총게시글수
+                (
+                    SELECT
+                        COUNT(*)::int
+                    FROM
+                        post
+                    WHERE
+                        game_idx = $1
+                    AND 
+                        deleted_at IS NULL
+                ) AS totalposts
+            FROM
                 post
             JOIN
                 "user" ON post.user_idx = "user".idx
@@ -106,12 +117,11 @@ router.get('/', async (req, res, next) => {
                 $2`,
             [gameIdx, offset]
         );
-        const totalPosts = result.rows[0].totalposts;
         const length = result.rows.length;
         res.status(200).send({
             data: result.rows,
             page,
-            totalPosts,
+            totalPosts: result.rows[0].totalposts,
             length,
         });
     } catch (err) {
@@ -132,8 +142,10 @@ router.get(
             const result = await pool.query(
                 `
             SELECT 
+                post.idx,
                 post.title, 
-                post.created_at, 
+                post.created_at,
+                "user".idx AS useridx,
                 "user".nickname,
                 -- 조회수
                 (
@@ -162,12 +174,11 @@ router.get(
                 $1`,
                 [offset]
             );
-            const length = result.rows.length;
             res.status(200).send({
                 data: result.rows,
                 page,
                 offset,
-                length,
+                length: result.rows.length,
             });
         } catch (err) {
             return next(err);
@@ -203,6 +214,8 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.title, 
                 post.content,
                 post.created_at,
+                post.game_idx,
+                "user".idx AS useridx,
                 "user".nickname,
                 -- 조회수 불러오기
                 (
