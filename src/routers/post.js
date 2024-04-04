@@ -47,8 +47,7 @@ router.post(
         const postIdx = req.params.postidx;
         try {
             const result = await pool.query(
-                `
-                UPDATE
+                `UPDATE
                     post
                 SET
                     title = $1, content = $2, created_at = now()
@@ -91,40 +90,42 @@ router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (r
 //페이지네이션
 //deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자
 router.get('/', async (req, res, next) => {
-    const page = req.query.page;
+    const page = parseInt(req.query.page);
     const gameIdx = req.query.gameidx;
     try {
+        // totalposts를 가져오는 별도의 쿼리
+        const totalPostsResult = await pool.query(
+            `SELECT
+                COUNT(*)::int AS "totalPosts"
+            FROM
+                post
+            WHERE
+                game_idx = $1
+            AND 
+                deleted_at IS NULL`,
+            [gameIdx]
+        );
         //20개씩 불러오기
         const offset = (page - 1) * 20;
+        const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / 20);
+        console.log(totalPostsResult.rows[0].totalPosts);
         const result = await pool.query(
-            `
-            SELECT 
+            `SELECT 
                 post.idx AS "postIdx",
                 post.title,
                 post.created_at AS "createdAt",
                 "user".idx AS "userIdx",
                 "user".nickname,
-                -- 조회수
-                (
-                    SELECT
-                        COUNT(*)::int
-                    FROM
-                        view
-                    WHERE
-                        post_idx = post.idx
-                ) AS view,
-                -- 총게시글수
-                (
-                    SELECT
-                        COUNT(*)::int
-                    FROM
-                        post
-                    WHERE
-                        game_idx = $1
-                    AND 
-                        deleted_at IS NULL
-                ) AS "totalPosts"
-            FROM
+            -- 조회수
+            (
+                SELECT
+                    COUNT(*)::int
+                FROM
+                    view
+                WHERE
+                    post_idx = post.idx
+            ) AS view
+        FROM
                 post
             JOIN
                 "user" ON post.user_idx = "user".idx
@@ -140,12 +141,12 @@ router.get('/', async (req, res, next) => {
                 $2`,
             [gameIdx, offset]
         );
-        const length = result.rows.length;
         res.status(200).send({
             data: result.rows,
             page,
-            totalPosts: result.rows[0].totalPosts,
-            length,
+            maxPage,
+            totalPosts: totalPostsResult.rows[0].totalPosts,
+            length: result.rows.length,
         });
     } catch (err) {
         next(err);
