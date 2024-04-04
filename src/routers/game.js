@@ -127,7 +127,7 @@ router.get('/popular', async (req, res, next) => {
             //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
             `
                 SELECT
-                    g.idx, g.title, count(*) AS post_count ,t.img_path  AS "imgPath"
+                    g.idx, g.title, count(*) AS "postCount" ,t.img_path  AS "imgPath"
                 FROM 
                     game g 
                 JOIN 
@@ -143,7 +143,7 @@ router.get('/popular', async (req, res, next) => {
                 GROUP BY 
                     g.title, t.img_path , g.idx
                 ORDER BY 
-                    post_count DESC
+                    "postCount" DESC
                 LIMIT
                     $1
                 OFFSET
