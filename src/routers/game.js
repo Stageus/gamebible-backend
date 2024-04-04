@@ -279,7 +279,7 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     try {
         const getHistorySQLResult = await pool.query(
             `SELECT 
-                g.title, u.nickname, h.content, h.created_at 
+                g.title, u.nickname, h.content, h.created_at AS "createdAt" 
             FROM 
                 history h 
             JOIN 
@@ -295,7 +295,7 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
             AND
                 h.created_at IS NOT NULL 
             ORDER BY 
-                created_at DESC 
+                h.created_at DESC 
             limit 
                 1;`,
             [gameIdx]
