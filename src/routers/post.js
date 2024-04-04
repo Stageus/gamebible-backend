@@ -210,7 +210,7 @@ router.get(
                     $2
                 OFFSET
                     $3`,
-                [postsPerPage, offset]
+                [title, postsPerPage, offset]
             );
             res.status(200).send({
                 data: result.rows,
