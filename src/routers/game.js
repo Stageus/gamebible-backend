@@ -4,7 +4,8 @@ const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
-const { generateNotification } = require('../modules/generateNotification');
+const { generateNotification, generateNotifications } = require('../modules/generateNotification');
+const { uploadS3 } = require('../middlewares/upload');
 
 //게임생성요청
 router.post(
@@ -40,7 +41,7 @@ router.get('/', async (req, res, next) => {
     try {
         const gameSelectSQLResult = await pool.query(
             `SELECT 
-                *
+                idx, user_idx AS "userIdx", title, created_at AS "createdAt"
             FROM 
                 game
             WHERE 
@@ -122,13 +123,11 @@ router.get('/popular', async (req, res, next) => {
     }
 
     try {
-        console.log('요청받음');
-        //
         const popularSelectSQLResult = await pool.query(
             //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
             `
                 SELECT
-                    g.idx, g.title, count(*) AS post_count ,t.img_path  AS "imgPath"
+                    g.idx, g.title, count(*) AS "postCount" ,t.img_path  AS "imgPath"
                 FROM 
                     game g 
                 JOIN 
@@ -144,7 +143,7 @@ router.get('/popular', async (req, res, next) => {
                 GROUP BY 
                     g.title, t.img_path , g.idx
                 ORDER BY 
-                    post_count DESC
+                    "postCount" DESC
                 LIMIT
                     $1
                 OFFSET
@@ -199,7 +198,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
         const selectHistorySQLResult = await pool.query(
             `
             SELECT 
-                h.idx, h.created_at, u.nickname
+                h.idx, h.created_at AS "createdAt", u.nickname
             FROM 
                 history h 
             JOIN 
@@ -208,6 +207,8 @@ router.get('/:gameidx/history', async (req, res, next) => {
                 h.user_idx = u.idx
             WHERE 
                 game_idx = $1
+            AND
+                h.created_at IS NOT NULL
             ORDER BY
                 h.created_at DESC`,
             [gameIdx]
@@ -225,7 +226,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
         beforeHistoryList.forEach((element) => {
             history = {};
             idx = element.idx;
-            timeStamp = element.created_at;
+            timeStamp = element.createdAt;
             nickname = element.nickname;
             createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
 
@@ -251,11 +252,15 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
         const getHistorySQLResult = await pool.query(
             `
             SELECT    
-                * 
+                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", content, h.created_at AS "createdAt", u.nickname 
             FROM 
-                history
+                history h
+            JOIN
+                "user" u
+            ON
+                h.user_idx = u.idx
             WHERE 
-                idx = $1
+                h.idx = $1
             AND 
                 game_idx = $2`,
             [historyIdx, gameIdx]
@@ -274,15 +279,25 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
     try {
         const getHistorySQLResult = await pool.query(
             `SELECT 
-                title, content, created_at 
+                g.title, u.nickname, h.content, h.created_at AS "createdAt" 
             FROM 
-                history
+                history h 
+            JOIN 
+                game g 
+            ON 
+                h.game_idx = g.idx
+            JOIN
+                "user" u
+            ON
+                u.idx = h.user_idx
             WHERE 
-                game_idx = $1
-            ORDER BY
-                created_at DESC
+                h.game_idx = $1
+            AND
+                h.created_at IS NOT NULL 
+            ORDER BY 
+                h.created_at DESC 
             limit 
-                1`,
+                1;`,
             [gameIdx]
         );
         const history = getHistorySQLResult.rows;
@@ -295,13 +310,13 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 
 //게임 수정하기
 router.put(
-    '/:gameidx/wiki',
+    '/:gameidx/wiki/:historyidx',
     checkLogin,
     body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
+        const historyIdx = req.params.historyidx;
         const gameIdx = req.params.gameidx;
-        const { userIdx } = req.decoded;
         const { content } = req.body;
 
         let poolClient = null;
@@ -321,33 +336,106 @@ router.put(
             );
             let historyUserList = historyUserSQLResult.rows;
 
-            for (let i = 0; i < historyUserList.length; i++) {
-                await generateNotification({
-                    conn: poolClient,
-                    type: 'MODIFY_GAME',
-                    gameIdx: gameIdx,
-                    toUserIdx: historyUserList[i].user_idx,
-                });
-            }
+            await generateNotifications({
+                conn: poolClient,
+                type: 'MODIFY_GAME',
+                gameIdx: gameIdx,
+                toUserIdx: historyUserList.map((elem) => elem.user_idx),
+            });
 
             // 새로운 히스토리 등록
             await poolClient.query(
-                `INSERT INTO 
-                    history(game_idx, user_idx, content)
-                VALUES 
-                    ($1, $2, $3)`,
-                [gameIdx, userIdx, content]
+                `UPDATE  
+                    history
+                SET
+                    content = $1, created_at = now()
+                WHERE
+                    idx = $2`,
+                [content, historyIdx]
             );
 
             await poolClient.query(`COMMIT`);
 
             res.status(200).send();
         } catch (e) {
-            console.log('에러발생');
             await poolClient.query(`ROLLBACK`);
             next(e);
         } finally {
             if (poolClient) poolClient.release();
+        }
+    }
+);
+// 임시위키생성
+router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
+    const gameIdx = req.params.gameidx;
+    const { userIdx } = req.decoded;
+    try {
+        const makeTemporaryHistorySQLResult = await pool.query(
+            `INSERT INTO 
+                history(game_idx, user_idx, created_at)
+            VALUES
+                ( $1, $2, null)
+            RETURNING
+                idx`,
+            [gameIdx, userIdx]
+        );
+
+        const temporaryHistory = makeTemporaryHistorySQLResult.rows[0];
+        const temporaryHistoryIdx = temporaryHistory.idx;
+
+        const getLatestHistorySQLResult = await pool.query(
+            `SELECT 
+                g.title, h.content
+            FROM 
+                history h 
+            JOIN 
+                game g 
+            ON 
+                h.game_idx = g.idx 
+            WHERE 
+                h.game_idx = $1
+            AND
+                h.created_at IS NOT NULL 
+            ORDER BY 
+                h.created_at DESC 
+            limit 
+                1;`,
+            [gameIdx]
+        );
+        const latestHistory = getLatestHistorySQLResult.rows[0];
+
+        res.status(201).send({
+            data: {
+                historyIdx: temporaryHistoryIdx,
+                title: latestHistory.title,
+                content: latestHistory.content,
+            },
+        });
+    } catch (e) {
+        next(e);
+    }
+});
+// 위키 이미지 업로드
+router.post(
+    '/:gameidx/wiki/:historyidx/image',
+    checkLogin,
+    uploadS3.array('images', 1),
+    async (req, res, next) => {
+        const historyIdx = req.params.historyidx;
+        try {
+            const location = req.files[0].location;
+            console.log(location);
+
+            await pool.query(
+                `INSERT INTO
+                    game_img( history_idx, img_path )
+                VALUES ( $1, $2 ) `,
+                [historyIdx, location]
+            );
+
+            res.status(200).send({ data: location });
+        } catch (e) {
+            next(e);
         }
     }
 );
