@@ -4,6 +4,7 @@ const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const { body, query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
+const { uploadS3 } = require('../middlewares/upload');
 
 //Apis
 //게시글 임시작성
@@ -63,6 +64,28 @@ router.post(
         }
     }
 );
+
+//게시글 이미지 업로드
+router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
+    const postIdx = req.params.postidx;
+    try {
+        const location = req.files[0].location;
+
+        await pool.query(
+            `INSERT INTO
+                post_img(
+                    post_idx,
+                    img_path
+                )
+            VALUES 
+                ($1, $2)`,
+            [postIdx, location]
+        );
+        res.status(200).send({ data: location });
+    } catch (err) {
+        next(err);
+    }
+});
 
 //게시판 보기 (게시글 목록보기)
 //페이지네이션
