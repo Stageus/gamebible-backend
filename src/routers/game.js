@@ -220,9 +220,11 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
     try {
         //특정게임 히스토리목록 최신순으로 출력
         const selectHistorySQLResult = await pool.query(
+            // history idx, 히스토리 제목(YYYY-MM-DD HH24:MI:SS 사용자닉네임) 출력
             `
             SELECT 
-                h.idx, h.created_at AS "createdAt", u.nickname
+                h.idx, 
+                TO_CHAR(h.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') || ' ' || u.nickname AS "title"
             FROM 
                 history h 
             JOIN 
@@ -237,30 +239,8 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
                 h.created_at DESC`,
             [gameIdx]
         );
-        const beforeHistoryList = selectHistorySQLResult.rows;
 
-        let idx;
-        let createdAt;
-        let nickname;
-        let timeStamp;
-        let historyTitle;
-        let history;
-        let historyList = [];
-
-        beforeHistoryList.forEach((element) => {
-            history = {};
-            idx = element.idx;
-            timeStamp = element.createdAt;
-            nickname = element.nickname;
-            createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
-
-            historyTitle = createdAt + ' ' + nickname;
-
-            history.idx = idx;
-            history.title = historyTitle;
-
-            historyList.push(history);
-        });
+        const historyList = selectHistorySQLResult.rows;
 
         res.status(200).send({ data: historyList });
     } catch (e) {
