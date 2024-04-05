@@ -269,11 +269,30 @@ router.get('/:gameidx/history', async (req, res, next) => {
 });
 
 //히스토리 자세히보기
-router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
-    const historyIdx = req.params.historyidx;
+router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
+    let historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
     try {
+        if (!historyIdx) {
+            //가장 최신 히스토리idx 출력
+            const getLatestHistoryIdxSQLResult = await pool.query(
+                `
+                SELECT
+                    MAX(idx)
+                FROM
+                    history
+                WHERE
+                    game_idx = $1
+                AND
+                    created_at IS NOT NULL
+            `,
+                [gameIdx]
+            );
+            historyIdx = getLatestHistoryIdxSQLResult.rows[0].max;
+        }
+
         const getHistorySQLResult = await pool.query(
+            //히스토리 idx, gameidx, useridx, 내용, 시간, 닉네임 출력
             `
             SELECT    
                 h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", content, h.created_at AS "createdAt", u.nickname 
