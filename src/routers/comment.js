@@ -74,12 +74,14 @@ router.get('/', checkLogin, async (req, res, next) => {
     const lastIdx = req.query.lastidx;
     const postIdx = req.query.postidx;
     try {
+        const userIdx = req.decoded.userIdx;
         //20개씩 불러오기
         const data = await pool.query(
             `
             SELECT
                 comment.content,
-                comment.created_at,
+                comment.created_at AS createdAt,
+                "user".idx AS userIdx,
                 "user".nickname
             FROM 
                 comment
@@ -95,6 +97,12 @@ router.get('/', checkLogin, async (req, res, next) => {
                 comment.idx ASC`,
             [postIdx, lastIdx]
         );
+        for (let i = 0; i < n; i++) {}
+
+        if (userIdx == result.rows.user_idx) {
+            isAuthor = true;
+            console.log();
+        }
         res.status(200).send({
             data: data.rows,
             lastIdx: data.rows[data.rows.length - 1].idx,
