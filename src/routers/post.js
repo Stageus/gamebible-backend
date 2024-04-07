@@ -69,15 +69,15 @@ router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (r
     const postIdx = req.params.postidx;
     try {
         const location = req.files[0].location;
-
+        console.log(location);
         await pool.query(
             `INSERT INTO
-                post_img(
-                    post_idx,
-                    img_path
-                )
-            VALUES 
-                ($1, $2)`,
+                    post_img(
+                        post_idx,
+                        img_path
+                    )
+                VALUES 
+                    ($1, $2)`,
             [postIdx, location]
         );
         res.status(200).send({ data: location });
