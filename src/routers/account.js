@@ -709,8 +709,10 @@ router.get('/kakao/callback', async (req, res, next) => {
         };
         const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
         console.log(response.data.kakao_account.email);
-        res.json(response.data);
-        //return res.send(data); // 클라이언트에 응답 데이터 전송
+        console.log(response.data.id);
+        return res
+            .status(200)
+            .json({ id: response.data.id, email: response.data.kakao_account.email });
     } catch (error) {
         next(error);
     }
