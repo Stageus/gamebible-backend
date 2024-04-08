@@ -89,7 +89,7 @@ router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (r
 //게시판 보기 (게시글 목록보기)
 //페이지네이션
 //deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자
-router.get('/', async (req, res, next) => {
+router.get('/all', async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const gameIdx = req.query.gameidx;
     try {
