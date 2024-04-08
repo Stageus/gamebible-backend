@@ -13,9 +13,8 @@ router.post(
     uploadS3.array('images', 2),
     async (req, res, next) => {
         const { requestIdx } = req.body;
-        console.log('requestIdx: ', requestIdx);
         let poolClient;
-        console.log('실행');
+
         try {
             poolClient = await pool.connect();
 
