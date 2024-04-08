@@ -671,7 +671,7 @@ router.get('/auth/kakao', (req, res, next) => {
     res.redirect(kakao);
 });
 
-//카카오톡 회원가입(access토큰 받기)
+//카카오톡 회원가입
 router.get('/kakao/callback', async (req, res, next) => {
     const { code } = req.query;
     REST_API_KEY = process.env.REST_API_KEY;
@@ -682,9 +682,8 @@ router.get('/kakao/callback', async (req, res, next) => {
         redirect_uri: REDIRECT_URI,
         code,
     };
-
+    let poolClient;
     try {
-        // tokenRequestData 객체를 URLSearchParams로 변환
         const params = new URLSearchParams();
         Object.keys(tokenRequestData).forEach((key) => {
             params.append(key, tokenRequestData[key]);
@@ -710,6 +709,112 @@ router.get('/kakao/callback', async (req, res, next) => {
         const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
         console.log(response.data.kakao_account.email);
         console.log(response.data.id);
+
+        poolClient = await pool.connect();
+        await poolClient.query('BEGIN');
+
+        const kakaoSql = `
+        SELECT
+            *
+        FROM
+            account_kakao
+        WHERE
+        kakao_key=$1;
+        `;
+        const kakaoResult = await poolClient.query(kakaoSql, [response.data.id]);
+
+        //중복 사용자가 없다면(회원가입)
+        if (kakaoResult.rows.length === 0) {
+            //이메일 중복 확인
+            const checkEmailSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+            email = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const checkEmailvalue = [response.data.kakao_account.email];
+            const emailResults = await poolClient.query(checkEmailSql, checkEmailvalue);
+            if (emailResults.rows.length > 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(409).send('일반 회원가입으로 가입된 사용자입니다.');
+            }
+
+            //랜덤 닉네임 생성
+            function generateRandomString(length) {
+                let result = '';
+                let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let charactersLength = characters.length;
+                for (let i = 0; i < length; i++) {
+                    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+                }
+                return result;
+            }
+            let randomNickname = generateRandomString(20);
+            console.log(randomNickname);
+
+            //닉네임 중복 확인
+            const checkNicknameSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+                nickname = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const value = [randomNickname];
+            const nicknameResults = await poolClient.query(checkNicknameSql, value);
+            if (nicknameResults.rows.length > 0) {
+                while (nicknameResults.rows.length > 0) {
+                    randomNickname = generateRandomString(20);
+                    nicknameResults = await poolClient.query(checkNicknameSql, value);
+                }
+            }
+
+            const kakaoAuthSql = `
+              INSERT INTO
+                "user"(
+                    nickname,
+                    email,
+                    is_admin
+                    ) 
+            VALUES ($1, $2, $3)
+            RETURNING idx
+            `;
+            const kakaoResult = await poolClient.query(kakaoAuthSql, [
+                randomNickname,
+                response.data.kakao_account.email,
+                false, //굳이 관리자 권한 안 줘도 되겠지?
+            ]);
+            if (kakaoResult.rows.length === 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(200).send('카카오 회원가입 실패');
+            }
+
+            const userIdx = kakaoResult.rows[0].idx;
+
+            const insertAccountSql = `
+            INSERT INTO
+                account_kakao (
+                    user_idx, 
+                    kakao_key
+                    )
+            VALUES ($1, $2)
+            RETURNING *`;
+            const accountValues = [userIdx, response.data.id];
+            const accountResult = await poolClient.query(insertAccountSql, accountValues);
+
+            if (accountResult.rows.length === 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(200).send({ message: '카카오 회원가입 실패' });
+            }
+        }
+        await poolClient.query('COMMIT');
         return res
             .status(200)
             .json({ id: response.data.id, email: response.data.kakao_account.email });
