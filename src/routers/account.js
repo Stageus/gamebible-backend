@@ -461,7 +461,13 @@ router.get('/info', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
-        햐;
+        const getUserInfoQuery = `
+         SELECT 
+            *
+        FROM
+            "user"
+         WHERE idx = $1
+      `;
         // queryDatabase 함수를 사용하여 쿼리 실행
         const userInfo = await pool.query(getUserInfoQuery, [userIdx]);
 
@@ -880,35 +886,6 @@ router.delete('/auth/kakao', checkLogin, async (req, res, next) => {
             return res.status(401).send({ message: '카카오 회원 탈퇴 실패' });
         }
         res.json('회원 탈퇴 성공');
-    } catch (error) {
-        next(error);
-    }
-});
-
-//카카오톡 탈퇴(access 토큰)
-router.delete('/auth/kakao2', checkLogin, async (req, res, next) => {
-    const accessToken = req.body.accessToken;
-
-    const config = {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Bearer ${accessToken}`,
-        },
-    };
-    const { userIdx } = req.decoded;
-
-    try {
-        const response = await axios.post('https://kapi.kakao.com/v1/user/unlink', {}, config);
-
-        const deleteSql = `
-    UPDATE
-        "user" 
-    SET
-        deleted_at = now()
-    WHERE
-        idx = $1`;
-        await pool.query(deleteSql, [userIdx]);
-        return res.status(400).send(response.data);
     } catch (error) {
         next(error);
     }
