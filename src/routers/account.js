@@ -461,13 +461,7 @@ router.get('/info', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
-        const getUserInfoQuery = `
-         SELECT 
-            *
-        FROM
-            "user"
-         WHERE idx = $1
-      `;
+        햐;
         // queryDatabase 함수를 사용하여 쿼리 실행
         const userInfo = await pool.query(getUserInfoQuery, [userIdx]);
 
@@ -605,49 +599,28 @@ router.get('/notification', checkLogin, async (req, res, next) => {
         const { lastIdx } = req.query;
 
         // 사용자의 알람 조회
-        const getNotificationsQuery = `
-        SELECT 
-            * 
-        FROM 
-            notification 
-        WHERE 
-            user_idx = $1
-        AND 
-            idx > $2 
-        ORDER BY 
-            idx DESC 
-        LIMIT 20`;
-        const notifications = await pool.query(getNotificationsQuery, [userIdx, lastIdx]);
-        const returnLastIdx = notifications.rows[0].idx;
-        if (!notifications.rows || notifications.rows.length === 0) {
-            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
-        }
+        const noti = `SELECT
+            n.*,
+            p.title AS post_title,
+            g.title AS game_title
+        FROM
+            notification n
+        LEFT JOIN
+            post p ON n.post_idx = p.idx AND n.type = 1
+        LEFT JOIN
+            game g ON n.game_idx = g.idx AND (n.type = 2 OR n.type = 3)
+        WHERE
+            n.user_idx = $1
+        AND
+            n.idx > $2
+        ORDER BY
+            n.idx DESC
+        LIMIT 20;`;
 
-        // 알람 타입에 따른 title 조회
-        for (let notification of notifications.rows) {
-            if (notification.type === 1) {
-                // post 테이블 조회
-                const postQuery = `
-                SELECT 
-                    title 
-                FROM
-                    post 
-                WHERE
-                    idx = $1`;
-                const postResult = await pool.query(postQuery, [notification.post_idx]);
-                notification.postInfo = postResult.rows[0];
-            } else if (notification.type === 2 || notification.type === 3) {
-                // game 테이블 조회
-                const gameQuery = `
-                SELECT 
-                    title 
-                FROM
-                    game
-                WHERE
-                    idx = $1`;
-                const gameResult = await pool.query(gameQuery, [notification.game_idx]);
-                notification.gameInfo = gameResult.rows[0];
-            }
+        const notifications = await pool.query(noti, [userIdx, lastIdx]);
+        const returnLastIdx = notifications.rows[0].idx;
+        if (notifications.rows.length === 0) {
+            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
         res.status(200).send({ notifications: notifications.rows, lastIdx: returnLastIdx });
@@ -717,7 +690,6 @@ router.get('/kakao/callback', async (req, res, next) => {
             params.append(key, tokenRequestData[key]);
         });
 
-        console.log(params.toString());
         // Axios POST 요청
         const { data } = await axios.post(
             'https://kauth.kakao.com/oauth/token',
@@ -728,10 +700,17 @@ router.get('/kakao/callback', async (req, res, next) => {
                 },
             }
         );
-
-        console.log(data); // 응답 데이터 로깅
-        console.log('되는거냐고요 예?');
-        res.send(data); // 클라이언트에 응답 데이터 전송
+        console.log(data.access_token);
+        const ACCESS_TOKEN = data.access_token;
+        const config = {
+            headers: {
+                Authorization: `Bearer ${ACCESS_TOKEN}`,
+            },
+        };
+        const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
+        console.log(response.data.kakao_account.email);
+        res.json(response.data);
+        //return res.send(data); // 클라이언트에 응답 데이터 전송
     } catch (error) {
         next(error);
     }
@@ -769,6 +748,7 @@ router.get('/kakao/user_info', async (req, res, next) => {
 
     try {
         const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
+        console.log(response.data.kakao_account.email);
         res.json(response.data);
     } catch (error) {
         next(error);
