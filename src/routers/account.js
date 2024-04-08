@@ -259,14 +259,14 @@ router.post(
             const { nickname } = req.body;
 
             const checkNicknameSql = `
-        SELECT
-            * 
-        FROM
-            "user" 
-        WHERE 
-            nickname = $1 
-        AND 
-            deleted_at IS NULL`;
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+                nickname = $1 
+            AND 
+                deleted_at IS NULL`;
 
             const value = [nickname];
 
@@ -462,12 +462,14 @@ router.get('/info', checkLogin, async (req, res, next) => {
         const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
         const getUserInfoQuery = `
-         SELECT 
-            *
+        SELECT 
+            u.*, al.*, ak.*
         FROM
-            "user"
-         WHERE idx = $1
-      `;
+            "user" u
+        LEFT JOIN account_local al ON u.idx = al.user_idx
+        LEFT JOIN account_kakao ak ON u.idx = ak.user_idx
+        WHERE u.idx = $1;
+    `;
         // queryDatabase 함수를 사용하여 쿼리 실행
         const userInfo = await pool.query(getUserInfoQuery, [userIdx]);
 
@@ -499,6 +501,40 @@ router.put(
         const { nickname, email } = req.body;
         console.log(nickname, email);
         try {
+            //닉네임 중복 확인
+            const checkNicknameSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+                nickname = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const value = [nickname];
+
+            const nicknameResults = await pool.query(checkNicknameSql, value);
+            if (nicknameResults.rows.length > 0)
+                return res.status(409).send('닉네임이 이미 존재합니다.');
+
+            //이메일 중복 확인
+            const checkEmailSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+            email = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const checkEmailvalue = [email];
+            const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
+            if (emailResults.rows.length > 0) {
+                return res.status(409).send('이메일이 이미 존재합니다.');
+            }
+
             const newInfoSql = `
             UPDATE "user"
             SET
