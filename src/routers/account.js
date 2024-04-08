@@ -334,6 +334,12 @@ router.post(
 //이메일 인증 확인
 router.post(
     '/email/auth',
+    body('code')
+        .trim()
+        .isLength({ min: 5, max: 5 })
+        .withMessage('인증코드는 5자리 숫자로 해주세요.')
+        .isNumeric()
+        .withMessage('인증코드는 숫자로만 구성되어야 합니다.'),
     body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
     handleValidationErrors,
     async (req, res, next) => {
@@ -368,34 +374,24 @@ router.get(
         const { email } = req.query;
         try {
             const findIdxSql = `
-        SELECT 
-            idx 
-        FROM 
-            "user"
-        WHERE 
-            email = $1
-        AND 
-            deleted_at IS NULL`;
+            SELECT 
+                a.id 
+            FROM 
+                account_local a
+            JOIN 
+                "user" u ON a.user_idx = u.idx
+            WHERE 
+                u.email = $1
+            AND 
+                u.deleted_at IS NULL;
+        `;
             const findIdxvalue = [email];
             const results = await pool.query(findIdxSql, findIdxvalue);
 
             if (results.rows.length === 0) {
                 return res.status(400).send('일치하는 사용자가 없습니다.');
             }
-            const findIdSql = `
-        SELECT 
-            id 
-        FROM 
-            account_local 
-        WHERE 
-            user_idx = $1`;
-
-            const findIdValue = [results.rows[0].idx];
-            const idResults = await pool.query(findIdSql, findIdValue);
-            if (idResults.rows.length === 0) {
-                return res.status(400).send('일치하는 사용자가 없습니다.');
-            }
-            const foundId = idResults.rows[0].id;
+            const foundId = results.rows[0].id;
 
             return res.status(200).send({ id: foundId });
         } catch (error) {
