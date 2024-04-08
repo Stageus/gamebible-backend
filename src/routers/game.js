@@ -17,11 +17,26 @@ router.post(
         const { title } = req.body;
         const { userIdx } = req.decoded;
         try {
+            const selectGameSQLResult = await pool.query(
+                `
+                SELECT
+                    *
+                FROM
+                    game
+                WHERE
+                    title = $1`,
+                [title]
+            );
+            const existingGame = selectGameSQLResult.rows[0];
+            if (existingGame) {
+                return res.status(409).send({ message: '이미존재하는 게임' });
+            }
+
             const sql = `
-        INSERT INTO 
-            request(user_idx, title) 
-        VALUES 
-            ( $1 ,$2 ) `;
+                INSERT INTO 
+                    request(user_idx, title) 
+                VALUES 
+                    ( $1 ,$2 )`;
             const values = [userIdx, title];
             await pool.query(sql, values);
 
