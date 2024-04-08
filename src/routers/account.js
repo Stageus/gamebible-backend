@@ -707,8 +707,6 @@ router.get('/kakao/callback', async (req, res, next) => {
             },
         };
         const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
-        console.log(response.data.kakao_account.email);
-        console.log(response.data.id);
 
         poolClient = await pool.connect();
         await poolClient.query('BEGIN');
@@ -725,15 +723,16 @@ router.get('/kakao/callback', async (req, res, next) => {
 
         //중복 사용자가 없다면(회원가입)
         if (kakaoResult.rows.length === 0) {
+            console.log('회원가입: ');
             //이메일 중복 확인
             const checkEmailSql = `
             SELECT
-                * 
+                *
             FROM
-                "user" 
-            WHERE 
-            email = $1 
-            AND 
+                "user"
+            WHERE
+            email = $1
+            AND
                 deleted_at IS NULL`;
 
             const checkEmailvalue = [response.data.kakao_account.email];
@@ -814,10 +813,45 @@ router.get('/kakao/callback', async (req, res, next) => {
                 return res.status(200).send({ message: '카카오 회원가입 실패' });
             }
         }
+
+        const userQuery = `
+            SELECT
+            *
+            FROM
+                account_kakao ak
+            JOIN
+                "user" u ON ak.user_idx = u.idx
+            WHERE
+                ak.kakao_key = $1 AND u.deleted_at IS NULL`;
+
+        const values = [response.data.id];
+
+        const { rows: userRows } = await poolClient.query(userQuery, values);
+
+        if (userRows.length === 0) {
+            return res.status(401).send({ message: '카카오톡 로그인 실패' });
+        }
+
+        const user = userRows[0];
+
         await poolClient.query('COMMIT');
-        return res
-            .status(200)
-            .json({ id: response.data.id, email: response.data.kakao_account.email });
+
+        const token = jwt.sign(
+            {
+                userIdx: user.user_idx,
+                isAdmin: user.is_admin,
+            },
+            process.env.SECRET_KEY,
+            {
+                expiresIn: '5h',
+            }
+        );
+        return res.status(200).json({
+            idx: user.user_idx,
+            id: response.data.id,
+            email: response.data.kakao_account.email,
+            token: token,
+        });
     } catch (error) {
         next(error);
     }
