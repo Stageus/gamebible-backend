@@ -146,6 +146,7 @@ router.get('/all', async (req, res, next) => {
             page,
             maxPage,
             totalPosts: totalPostsResult.rows[0].totalPosts,
+            offset,
             length: result.rows.length,
         });
     } catch (err) {
