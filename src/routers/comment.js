@@ -96,7 +96,9 @@ router.get('/all', checkLogin, async (req, res, next) => {
             AND
                 comment.idx > $2
             ORDER BY
-                comment.idx ASC`,
+                comment.idx ASC
+            LIMIT
+                20`,
             [postIdx, lastIdx]
         );
         res.status(200).send({
