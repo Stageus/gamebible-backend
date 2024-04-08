@@ -57,8 +57,20 @@ router.get('/', async (req, res, next) => {
 
         const gameList = gameSelectSQLResult.rows;
 
+        const totalGamesNumberSQLResult = await pool.query(`
+            SELECT
+                count(*)
+            FROM
+                game
+            WHERE
+                deleted_at IS NULL`);
+
+        const totalGamesNumber = totalGamesNumberSQLResult.rows[0].count;
+        const maxPage = Math.ceil(totalGamesNumber / 20);
+
         res.status(200).send({
             data: {
+                maxPage: maxPage,
                 page: page,
                 skip: skip,
                 count: gameList.length,
@@ -203,14 +215,16 @@ router.get('/:gameidx/banner', async (req, res, next) => {
 });
 
 //히스토리 목록보기
-router.get('/:gameidx/history', async (req, res, next) => {
+router.get('/:gameidx/history/all', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
         //특정게임 히스토리목록 최신순으로 출력
         const selectHistorySQLResult = await pool.query(
+            // history idx, 히스토리 제목(YYYY-MM-DD HH24:MI:SS 사용자닉네임) 출력
             `
             SELECT 
-                h.idx, h.created_at AS "createdAt", u.nickname
+                h.idx, 
+                TO_CHAR(h.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') || ' ' || u.nickname AS "title"
             FROM 
                 history h 
             JOIN 
@@ -225,30 +239,8 @@ router.get('/:gameidx/history', async (req, res, next) => {
                 h.created_at DESC`,
             [gameIdx]
         );
-        const beforeHistoryList = selectHistorySQLResult.rows;
 
-        let idx;
-        let createdAt;
-        let nickname;
-        let timeStamp;
-        let historyTitle;
-        let history;
-        let historyList = [];
-
-        beforeHistoryList.forEach((element) => {
-            history = {};
-            idx = element.idx;
-            timeStamp = element.createdAt;
-            nickname = element.nickname;
-            createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
-
-            historyTitle = createdAt + ' ' + nickname;
-
-            history.idx = idx;
-            history.title = historyTitle;
-
-            historyList.push(history);
-        });
+        const historyList = selectHistorySQLResult.rows;
 
         res.status(200).send({ data: historyList });
     } catch (e) {
@@ -257,11 +249,30 @@ router.get('/:gameidx/history', async (req, res, next) => {
 });
 
 //히스토리 자세히보기
-router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
-    const historyIdx = req.params.historyidx;
+router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
+    let historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
     try {
+        if (!historyIdx) {
+            //가장 최신 히스토리idx 출력
+            const getLatestHistoryIdxSQLResult = await pool.query(
+                `
+                SELECT
+                    MAX(idx)
+                FROM
+                    history
+                WHERE
+                    game_idx = $1
+                AND
+                    created_at IS NOT NULL
+            `,
+                [gameIdx]
+            );
+            historyIdx = getLatestHistoryIdxSQLResult.rows[0].max;
+        }
+
         const getHistorySQLResult = await pool.query(
+            //히스토리 idx, gameidx, useridx, 내용, 시간, 닉네임 출력
             `
             SELECT    
                 h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", content, h.created_at AS "createdAt", u.nickname 
@@ -276,41 +287,6 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
             AND 
                 game_idx = $2`,
             [historyIdx, gameIdx]
-        );
-        const history = getHistorySQLResult.rows;
-
-        res.status(200).send({ data: history });
-    } catch (e) {
-        next(e);
-    }
-});
-
-//게임 자세히보기
-router.get('/:gameidx/wiki', async (req, res, next) => {
-    const gameIdx = req.params.gameidx;
-    try {
-        const getHistorySQLResult = await pool.query(
-            `SELECT 
-                g.title, u.nickname, h.content, h.created_at AS "createdAt" 
-            FROM 
-                history h 
-            JOIN 
-                game g 
-            ON 
-                h.game_idx = g.idx
-            JOIN
-                "user" u
-            ON
-                u.idx = h.user_idx
-            WHERE 
-                h.game_idx = $1
-            AND
-                h.created_at IS NOT NULL 
-            ORDER BY 
-                h.created_at DESC 
-            limit 
-                1;`,
-            [gameIdx]
         );
         const history = getHistorySQLResult.rows;
 
@@ -394,7 +370,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
 
         const temporaryHistory = makeTemporaryHistorySQLResult.rows[0];
         const temporaryHistoryIdx = temporaryHistory.idx;
-
+        //기존 게임내용 불러오기
         const getLatestHistorySQLResult = await pool.query(
             `SELECT 
                 g.title, h.content

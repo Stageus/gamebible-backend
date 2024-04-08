@@ -5,7 +5,7 @@ const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
 const { generateNotification } = require('../modules/generateNotification');
 
-// 게임 생성
+// 게임 생성 요청 승인
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     const { requestIdx } = req.body;
     let poolClient;
