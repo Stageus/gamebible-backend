@@ -699,8 +699,8 @@ router.get('/kakao/callback', async (req, res, next) => {
                 },
             }
         );
-        console.log(data.access_token);
         const ACCESS_TOKEN = data.access_token;
+        console.log(ACCESS_TOKEN);
         const config = {
             headers: {
                 Authorization: `Bearer ${ACCESS_TOKEN}`,
@@ -715,10 +715,11 @@ router.get('/kakao/callback', async (req, res, next) => {
         SELECT
             *
         FROM
-            account_kakao
+            account_kakao ak
+        JOIN
+            "user" u ON ak.user_idx = u.idx
         WHERE
-        kakao_key=$1;
-        `;
+        ak.kakao_key = $1 AND u.deleted_at IS NULL`;
         const kakaoResult = await poolClient.query(kakaoSql, [response.data.id]);
 
         //중복 사용자가 없다면(회원가입)
@@ -814,19 +815,9 @@ router.get('/kakao/callback', async (req, res, next) => {
             }
         }
 
-        const userQuery = `
-            SELECT
-            *
-            FROM
-                account_kakao ak
-            JOIN
-                "user" u ON ak.user_idx = u.idx
-            WHERE
-                ak.kakao_key = $1 AND u.deleted_at IS NULL`;
-
         const values = [response.data.id];
 
-        const { rows: userRows } = await poolClient.query(userQuery, values);
+        const { rows: userRows } = await poolClient.query(kakaoSql, values);
 
         if (userRows.length === 0) {
             return res.status(401).send({ message: '카카오톡 로그인 실패' });
@@ -838,6 +829,7 @@ router.get('/kakao/callback', async (req, res, next) => {
 
         const token = jwt.sign(
             {
+                id: response.data.id,
                 userIdx: user.user_idx,
                 isAdmin: user.is_admin,
             },
@@ -858,7 +850,43 @@ router.get('/kakao/callback', async (req, res, next) => {
 });
 
 //카카오톡 탈퇴
-router.delete('/auth/kakao', async (req, res, next) => {
+router.delete('/auth/kakao', checkLogin, async (req, res, next) => {
+    const SERVICE_APP_ADMIN_KEY = process.env.ADMIN_KEY;
+    console.log(SERVICE_APP_ADMIN_KEY);
+    const { id, userIdx } = req.decoded;
+    console.log(id, userIdx);
+
+    try {
+        const response = await axios.post(
+            'https://kapi.kakao.com/v1/user/unlink',
+            `target_id_type=user_id&target_id=${id}`,
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    Authorization: `KakaoAK ${SERVICE_APP_ADMIN_KEY}`,
+                },
+            }
+        );
+        const deleteSql = `
+        UPDATE
+            "user"
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+
+        const deletequery = await pool.query(deleteSql, [userIdx]);
+        if (deletequery.rowCount === 0) {
+            return res.status(401).send({ message: '카카오 회원 탈퇴 실패' });
+        }
+        res.json('회원 탈퇴 성공');
+    } catch (error) {
+        next(error);
+    }
+});
+
+//카카오톡 탈퇴(access 토큰)
+router.delete('/auth/kakao2', checkLogin, async (req, res, next) => {
     const accessToken = req.body.accessToken;
 
     const config = {
@@ -873,12 +901,12 @@ router.delete('/auth/kakao', async (req, res, next) => {
         const response = await axios.post('https://kapi.kakao.com/v1/user/unlink', {}, config);
 
         const deleteSql = `
-        UPDATE
-            "user" 
-        SET
-            deleted_at = now()
-        WHERE
-            idx = $1`;
+    UPDATE
+        "user" 
+    SET
+        deleted_at = now()
+    WHERE
+        idx = $1`;
         await pool.query(deleteSql, [userIdx]);
         return res.status(400).send(response.data);
     } catch (error) {
