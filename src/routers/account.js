@@ -665,13 +665,13 @@ router.delete('/notification/:notificationId', checkLogin, async (req, res, next
     }
 });
 
-//카카오 로그인 경로 주기
+//카카오 로그인(회원가입)경로
 router.get('/auth/kakao', (req, res, next) => {
     const kakao = process.env.KAKAO_LOGIN_AUTH;
     res.redirect(kakao);
 });
 
-//카카오톡 회원가입
+//카카오톡 로그인(회원가입)
 router.get('/kakao/callback', async (req, res, next) => {
     const { code } = req.query;
     REST_API_KEY = process.env.REST_API_KEY;
@@ -823,62 +823,8 @@ router.get('/kakao/callback', async (req, res, next) => {
     }
 });
 
-//카카오톡 토큰 정보 보기(access토큰)->쌉 필요없는거엿고
-router.get('/kakao/token_info', async (req, res, next) => {
-    const { ACCESS_TOKEN } = req.query;
-    const config = {
-        headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-        },
-    };
-
-    try {
-        const response = await axios.get(
-            'https://kapi.kakao.com/v1/user/access_token_info',
-            config
-        );
-        res.json(response.data);
-    } catch (error) {
-        console.error(`에러 발생: ${error}`);
-        res.status(500).send('서버 에러');
-    }
-});
-
-//카카오톡 회원 정보 보기(access토큰)
-router.get('/kakao/user_info', async (req, res, next) => {
-    const { ACCESS_TOKEN } = req.query;
-    const config = {
-        headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-        },
-    };
-
-    try {
-        const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
-        console.log(response.data.kakao_account.email);
-        res.json(response.data);
-    } catch (error) {
-        next(error);
-    }
-});
-
-//카카오톡 회원 정보 보기(ID토큰)
-router.post('/kakao/id-token', async (req, res, next) => {
-    const { ID_TOKEN } = req.body; // 클라이언트로부터 ID_TOKEN 받기
-
-    try {
-        const response = await axios.post(
-            'https://kauth.kakao.com/oauth/tokeninfo',
-            `id_token=${ID_TOKEN}`
-        );
-        res.send({ data: response.data });
-    } catch (error) {
-        next(error);
-    }
-});
-
 //카카오톡 탈퇴
-router.post('/unlinkKakaoUser', async (req, res) => {
+router.delete('/auth/kakao', async (req, res, next) => {
     const accessToken = req.body.accessToken;
 
     const config = {
@@ -887,17 +833,22 @@ router.post('/unlinkKakaoUser', async (req, res) => {
             Authorization: `Bearer ${accessToken}`,
         },
     };
+    const { userIdx } = req.decoded;
 
     try {
         const response = await axios.post('https://kapi.kakao.com/v1/user/unlink', {}, config);
-        return res.json(response.data);
+
+        const deleteSql = `
+        UPDATE
+            "user" 
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+        await pool.query(deleteSql, [userIdx]);
+        return res.status(400).send(response.data);
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            success: false,
-            message: '사용자 연동 해제 실패',
-            error: error,
-        });
+        next(error);
     }
 });
 
