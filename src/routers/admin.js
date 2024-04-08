@@ -6,89 +6,104 @@ const { uploadS3 } = require('../middlewares/upload');
 const { generateNotification } = require('../modules/generateNotification');
 
 // 게임 생성 요청 승인
-router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
-    const { requestIdx } = req.body;
-    let poolClient;
+router.post(
+    '/game',
+    checkLogin,
+    checkAdmin,
+    uploadS3.array('images', 2),
+    async (req, res, next) => {
+        const { requestIdx } = req.body;
+        console.log('requestIdx: ', requestIdx);
+        let poolClient;
+        console.log('실행');
+        try {
+            poolClient = await pool.connect();
 
-    try {
-        poolClient = await pool.connect();
+            await poolClient.query('BEGIN');
 
-        await poolClient.query('BEGIN');
-
-        //요청삭제
-        await poolClient.query(
-            `UPDATE
+            //요청삭제, 제목,유저idx반환
+            const deleteRequestSQLResult = await poolClient.query(
+                `
+            UPDATE
                 request
             SET 
                 deleted_at = now(), is_confirmed = true
             WHERE 
-                idx = $1`,
-            [requestIdx]
-        );
+                idx = $1
+            RETURNING
+                user_idx AS "userIdx" , title`,
+                [requestIdx]
+            );
+            const request = deleteRequestSQLResult.rows[0];
 
-        //제목, 유저idx 불러오기
-        const selectRequestSQLResult = await poolClient.query(
-            `SELECT
-                title, user_idx
-            FROM
-                request
-            WHERE 
-                idx = $1`,
-            [requestIdx]
-        );
-        const selectedRequest = selectRequestSQLResult.rows[0];
+            //기존 게임중복확인
+            const selectEixsistingGameSQLResult = await poolClient.query(
+                `
+                SELECT
+                    *
+                FROM
+                    game
+                WHERE
+                    title = $1`,
+                [request.title]
+            );
 
-        await poolClient.query(
-            `INSERT INTO
-                game(title, user_idx)
-            VALUES
-                ( $1, $2 )`,
-            [selectedRequest.title, selectedRequest.user_idx]
-        );
+            const existingGame = selectEixsistingGameSQLResult.rows[0];
+            if (existingGame) {
+                throw new Error('이미존재하는게임');
+            }
 
-        const selectLatestGameResult = await poolClient.query(
-            `SELECT 
-                idx
-            FROM
-                game
-            ORDER BY 
-                idx DESC
-            limit 1`
-        );
-        const latestGameIdx = selectLatestGameResult.rows[0].idx;
+            //새로운게임추가
+            const insertGameSQLResult = await poolClient.query(
+                `
+                INSERT INTO
+                    game(title, user_idx)
+                VALUES
+                    ( $1, $2 )
+                RETURNING
+                    idx AS "gameIdx"`,
+                [request.title, request.userIdx]
+            );
+            const gameIdx = insertGameSQLResult.rows[0].gameIdx;
 
-        await poolClient.query(
-            `INSERT INTO 
-                history(game_idx, user_idx)
-            VALUES( $1, $2 )`,
-            [latestGameIdx, selectedRequest.user_idx]
-        );
+            await poolClient.query(
+                `
+                INSERT INTO 
+                    history(game_idx, user_idx)
+                VALUES( $1, $2 )`,
+                [gameIdx, request.userIdx]
+            );
 
-        //게임 썸네일, 배너이미지 등록
-        await poolClient.query(
-            `INSERT INTO
-            game_img_thumnail(game_idx)
-            VALUES ( $1 )`,
-            [latestGameIdx]
-        );
+            const thumnailLocation = req.files[0].location;
+            const bannerLocation = req.files[1].location;
 
-        await poolClient.query(
-            `
-            INSERT INTO
-                game_img_banner(game_idx)
-            VALUES ( $1 )`,
-            [latestGameIdx]
-        );
+            //게임 썸네일, 배너이미지 등록
+            await poolClient.query(
+                `
+                INSERT INTO
+                    game_img_thumnail(game_idx, img_path)
+                VALUES ( $1, $2 )`,
+                [gameIdx, thumnailLocation]
+            );
 
-        res.status(201).send();
-        await poolClient.query('COMMIT');
-    } catch (e) {
-        await poolClient.query('ROLLBACK');
-        next(e);
-    } finally {
-        poolClient.release();
+            await poolClient.query(
+                `
+                INSERT INTO
+                    game_img_banner(game_idx, img_path)
+                VALUES ( $1, $2 )`,
+                [gameIdx, bannerLocation]
+            );
+
+            res.status(201).send();
+            await poolClient.query('COMMIT');
+        } catch (e) {
+            await poolClient.query('ROLLBACK');
+            next(e);
+        } finally {
+            poolClient.release();
+        }
     }
-});
+);
 //승인요청온 게임목록보기
 router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
     try {
