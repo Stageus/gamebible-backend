@@ -9,8 +9,8 @@ const { uploadS3 } = require('../middlewares/upload');
 //Apis
 //게시글 임시작성
 router.post('/', checkLogin, async (req, res, next) => {
-    const gameIdx = req.query.gameidx;
-    const userIdx = req.decoded.userIdx;
+    const gameIdx = parseInt(req.query.gameidx);
+    const userIdx = parseInt(req.decoded.userIdx);
     try {
         const result = await pool.query(
             `INSERT INTO
@@ -44,7 +44,7 @@ router.post(
     handleValidationErrors,
     async (req, res, next) => {
         const { title, content } = req.body;
-        const postIdx = req.params.postidx;
+        const postIdx = parseInt(req.params.postidx);
         try {
             const result = await pool.query(
                 `UPDATE
@@ -66,7 +66,7 @@ router.post(
 
 //게시글 이미지 업로드
 router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
-    const postIdx = req.params.postidx;
+    const postIdx = parseInt(req.params.postidx);
     try {
         const location = req.files[0].location;
         console.log(location);
@@ -91,7 +91,7 @@ router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (r
 //deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자
 router.get('/all', async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
-    const gameIdx = req.query.gameidx;
+    const gameIdx = parseInt(req.query.gameidx);
     try {
         // totalposts를 가져오는 별도의 쿼리
         const totalPostsResult = await pool.query(
@@ -230,7 +230,7 @@ router.get(
 
 //게시글 상세보기
 router.get('/:postidx', checkLogin, async (req, res, next) => {
-    const postIdx = req.params.postidx;
+    const postIdx = parseInt(req.params.postidx);
     let poolClient;
     try {
         const userIdx = req.decoded.userIdx;
@@ -294,11 +294,10 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
         poolClient.release();
     }
 });
-
 //게시글 삭제하기
 router.delete('/:postidx', checkLogin, async (req, res, next) => {
-    const postIdx = req.params.postidx;
-    const userIdx = req.decoded.userIdx;
+    const postIdx = parseInt(req.params.postidx);
+    const userIdx = parseInt(req.decoded.userIdx);
     try {
         await pool.query(
             `

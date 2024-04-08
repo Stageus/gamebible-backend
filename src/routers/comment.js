@@ -17,8 +17,8 @@ router.post(
         .withMessage('내용은 1~1000자로 입력해주세요'),
     async (req, res, next) => {
         const content = req.body.content;
-        const gameIdx = req.query.gameidx;
-        const postIdx = req.query.postidx;
+        const gameIdx = parseInt(req.query.gameidx);
+        const postIdx = parseInt(req.query.postidx);
         let poolClient;
         try {
             const userIdx = req.decoded.userIdx;
@@ -57,7 +57,8 @@ router.post(
                 postIdx: postIdx,
                 toUserIdx: data.rows[0].user_idx,
             });
-            res.status(201).send();
+            res.status(201).end();
+            await poolClient.query('COMMIT');
         } catch (err) {
             console.log('에러발생');
             await poolClient.query(`ROLLBACK`);
@@ -71,14 +72,15 @@ router.post(
 //댓글 보기
 //무한스크롤
 router.get('/all', checkLogin, async (req, res, next) => {
-    const lastIdx = req.query.lastidx;
-    const postIdx = req.query.postidx;
+    const lastIdx = parseInt(req.query.lastidx) || 0;
+    const postIdx = parseInt(req.query.postidx);
     try {
         const userIdx = req.decoded.userIdx;
         //20개씩 불러오기
         const result = await pool.query(
             `
             SELECT
+                comment.idx,
                 comment.content,
                 comment.created_at AS "createdAt",
                 "user".idx AS "userIdx",
@@ -97,12 +99,6 @@ router.get('/all', checkLogin, async (req, res, next) => {
                 comment.idx ASC`,
             [postIdx, lastIdx]
         );
-        // for (let i = 0; i < n; i++) {}
-
-        if (userIdx == result.rows.user_idx) {
-            isAuthor = true;
-            console.log();
-        }
         res.status(200).send({
             data: result.rows,
             lastIdx: result.rows[result.rows.length - 1].idx,
@@ -114,7 +110,7 @@ router.get('/all', checkLogin, async (req, res, next) => {
 
 //댓글 삭제
 router.delete('/:commentidx', checkLogin, async (req, res, next) => {
-    const commentIdx = req.params.commentidx;
+    const commentIdx = parseInt(req.params.commentidx);
     try {
         const userIdx = req.decoded.userIdx;
         await pool.query(
