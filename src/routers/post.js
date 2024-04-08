@@ -4,6 +4,7 @@ const { pool } = require('../config/postgres');
 const checkLogin = require('../middlewares/checkLogin');
 const { body, query } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
+const { uploadS3 } = require('../middlewares/upload');
 
 //Apis
 //게시글 임시작성
@@ -21,7 +22,7 @@ router.post('/', checkLogin, async (req, res, next) => {
             VALUES
                 ($1, $2, null)
             RETURNING
-                idx`,
+                idx AS "postIdx"`,
             [userIdx, gameIdx]
         );
         res.status(201).send({ data: result.rows[0] });
@@ -46,15 +47,14 @@ router.post(
         const postIdx = req.params.postidx;
         try {
             const result = await pool.query(
-                `
-                UPDATE
+                `UPDATE
                     post
                 SET
                     title = $1, content = $2, created_at = now()
                 WHERE
                     idx = $3
                 RETURNING
-                    game_idx`,
+                    game_idx AS "gameIdx"`,
                 [title, content, postIdx]
             );
             res.status(200).send({ data: result.rows[0] });
@@ -64,44 +64,68 @@ router.post(
     }
 );
 
+//게시글 이미지 업로드
+router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
+    const postIdx = req.params.postidx;
+    try {
+        const location = req.files[0].location;
+        console.log(location);
+        await pool.query(
+            `INSERT INTO
+                    post_img(
+                        post_idx,
+                        img_path
+                    )
+                VALUES 
+                    ($1, $2)`,
+            [postIdx, location]
+        );
+        res.status(200).send({ data: location });
+    } catch (err) {
+        next(err);
+    }
+});
+
 //게시판 보기 (게시글 목록보기)
 //페이지네이션
 //deleted_at 값이 null이 아닌 경우에는 탈퇴한 사용자
 router.get('/', async (req, res, next) => {
-    const page = req.query.page;
+    const page = parseInt(req.query.page) || 1;
     const gameIdx = req.query.gameidx;
     try {
-        //20개씩 불러오기
-        const offset = (page - 1) * 20;
-        const result = await pool.query(
-            `
-            SELECT 
-                post.idx AS post_idx,
-                post.title,
-                post.created_at,
-                "user".idx AS user_idx,
-                "user".nickname,
-                -- 조회수
-                (
-                    SELECT
-                        COUNT(*)::int
-                    FROM
-                        view
-                    WHERE
-                        post_idx = post.idx
-                ) AS view,
-                -- 총게시글수
-                (
-                    SELECT
-                        COUNT(*)::int
-                    FROM
-                        post
-                    WHERE
-                        game_idx = $1
-                    AND 
-                        deleted_at IS NULL
-                ) AS totalposts
+        // totalposts를 가져오는 별도의 쿼리
+        const totalPostsResult = await pool.query(
+            `SELECT
+                COUNT(*)::int AS "totalPosts"
             FROM
+                post
+            WHERE
+                game_idx = $1
+            AND 
+                deleted_at IS NULL`,
+            [gameIdx]
+        );
+        //20개씩 불러오기
+        const postsPerPage = 20;
+        const offset = (page - 1) * postsPerPage;
+        const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / postsPerPage);
+        const result = await pool.query(
+            `SELECT 
+                post.idx AS "postIdx",
+                post.title,
+                post.created_at AS "createdAt",
+                "user".idx AS "userIdx",
+                "user".nickname,
+            -- 조회수
+            (
+                SELECT
+                    COUNT(*)::int
+                FROM
+                    view
+                WHERE
+                    post_idx = post.idx
+            ) AS view
+        FROM
                 post
             JOIN
                 "user" ON post.user_idx = "user".idx
@@ -112,17 +136,17 @@ router.get('/', async (req, res, next) => {
             ORDER BY
                 post.idx DESC
             LIMIT
-                20
+                $2
             OFFSET
-                $2`,
-            [gameIdx, offset]
+                $3`,
+            [gameIdx, postsPerPage, offset]
         );
-        const length = result.rows.length;
         res.status(200).send({
             data: result.rows,
             page,
-            totalPosts: result.rows[0].totalposts,
-            length,
+            maxPage,
+            totalPosts: totalPostsResult.rows[0].totalPosts,
+            length: result.rows.length,
         });
     } catch (err) {
         next(err);
@@ -135,48 +159,63 @@ router.get(
     '/search',
     query('title').trim().isLength({ min: 2 }).withMessage('2글자 이상입력해주세요'),
     async (req, res, next) => {
-        const { page, title } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const title = req.query.title;
         try {
+            // totalposts를 가져오는 별도의 쿼리
+            const totalPostsResult = await pool.query(
+                `SELECT
+                    COUNT(*)::int AS "totalPosts"
+                FROM
+                    post
+                WHERE
+                    post.title LIKE '%' ||$1|| '%'
+                AND 
+                    deleted_at IS NULL`,
+                [title]
+            );
             //7개씩 불러오기
-            const offset = (page - 1) * 7;
+            const postsPerPage = 7;
+            const offset = (page - 1) * postsPerPage;
+            const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / postsPerPage);
             const result = await pool.query(
-                `
-            SELECT 
-                post.idx AS post_idx,
-                post.title, 
-                post.created_at,
-                "user".idx AS user_idx,
-                "user".nickname,
-                -- 조회수
-                (
-                    SELECT
-                        COUNT(*)::int
-                    FROM
-                        view
-                    WHERE
-                        post_idx = post.idx 
-                ) AS view
-            FROM 
-                post 
-            LEFT JOIN
-                view ON post.idx = view.post_idx
-            JOIN 
-                "user" ON post.user_idx = "user".idx
-            WHERE
-                post.title LIKE '%${title}%'
-            AND 
-                post.deleted_at IS NULL
-            ORDER BY
-                post.idx DESC
-            LIMIT
-                7
-            OFFSET
-                $1`,
-                [offset]
+                `SELECT 
+                    post.idx AS postIdx,
+                    post.title,
+                    post.created_at AS "createdAt",
+                    "user".idx AS "userIdx",
+                    "user".nickname,
+                    -- 조회수
+                    (
+                        SELECT
+                            COUNT(*)::int
+                        FROM
+                            view
+                        WHERE
+                            post_idx = post.idx 
+                    ) AS view
+                FROM 
+                    post 
+                LEFT JOIN
+                    view ON post.idx = view.post_idx
+                JOIN 
+                    "user" ON post.user_idx = "user".idx
+                WHERE
+                    post.title LIKE '%' ||$1|| '%'
+                AND 
+                    post.deleted_at IS NULL
+                ORDER BY
+                    post.idx DESC
+                LIMIT
+                    $2
+                OFFSET
+                    $3`,
+                [title, postsPerPage, offset]
             );
             res.status(200).send({
                 data: result.rows,
                 page,
+                maxPage,
                 offset,
                 length: result.rows.length,
             });
@@ -192,6 +231,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
     let poolClient;
     try {
         const userIdx = req.decoded.userIdx;
+        let isAuthor = false;
         poolClient = await pool.connect();
         await poolClient.query('BEGIN');
 
@@ -213,9 +253,9 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
             SELECT 
                 post.title, 
                 post.content,
-                post.created_at,
-                post.game_idx,
-                "user".idx AS user_idx,
+                post.created_at AS "createdAt",
+                post.game_idx AS "gameIdx",
+                "user".idx AS "userIdx",
                 "user".nickname,
                 -- 조회수 불러오기
                 (
@@ -236,8 +276,12 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.deleted_at IS NULL`,
             [postIdx]
         );
+        if (userIdx == result.rows[0].user_idx) {
+            isAuthor = true;
+        }
         res.status(200).send({
             data: result.rows[0],
+            isAuthor: isAuthor,
         });
         await poolClient.query('COMMIT');
     } catch (err) {
