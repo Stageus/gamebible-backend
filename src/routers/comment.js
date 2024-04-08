@@ -80,8 +80,8 @@ router.get('/all', checkLogin, async (req, res, next) => {
             `
             SELECT
                 comment.content,
-                comment.created_at AS createdAt,
-                "user".idx AS userIdx,
+                comment.created_at AS "createdAt",
+                "user".idx AS "userIdx",
                 "user".nickname
             FROM 
                 comment
