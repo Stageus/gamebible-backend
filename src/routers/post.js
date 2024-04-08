@@ -180,7 +180,8 @@ router.get(
             const maxPage = Math.ceil(totalPostsResult.rows[0].totalPosts / postsPerPage);
             const result = await pool.query(
                 `SELECT 
-                    post.idx AS postIdx,
+                    post.game_idx AS "gameIdx",
+                    post.idx AS "postIdx",
                     post.title,
                     post.created_at AS "createdAt",
                     "user".idx AS "userIdx",
@@ -216,6 +217,7 @@ router.get(
                 data: result.rows,
                 page,
                 maxPage,
+                totalPosts: totalPostsResult.rows[0].totalPosts,
                 offset,
                 length: result.rows.length,
             });
