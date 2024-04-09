@@ -72,6 +72,10 @@ router.get('/all', async (req, res, next) => {
 
         const gameList = gameSelectSQLResult.rows;
 
+        if (!gameList.length) {
+            res.status(204).send();
+        }
+
         const totalGamesNumberSQLResult = await pool.query(`
             SELECT
                 count(*)
