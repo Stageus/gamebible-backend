@@ -256,6 +256,9 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
         );
 
         const historyList = selectHistorySQLResult.rows;
+        if (!historyList.length) {
+            return res.status(204).send();
+        }
 
         res.status(200).send({ data: historyList });
     } catch (e) {
