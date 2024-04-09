@@ -158,6 +158,17 @@ router.get('/popular', async (req, res, next) => {
     }
 
     try {
+        const totalGamesQueryResult = await pool.query(`
+            SELECT
+                count(*)
+            FROM
+                game g
+            WHERE
+                deleted_at IS NULL    
+        `);
+        const totalGamesNumber = totalGamesQueryResult.rows[0].count;
+        const maxPage = Math.ceil((totalGamesNumber - 19) / 16) + 1;
+
         const popularSelectSQLResult = await pool.query(
             //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
             `
@@ -187,16 +198,9 @@ router.get('/popular', async (req, res, next) => {
         );
         const popularGameList = popularSelectSQLResult.rows;
 
-        const totalGamesQueryResult = await pool.query(`
-            SELECT
-                count(*)
-            FROM
-                game g
-            WHERE
-                deleted_at IS NULL    
-        `);
-        const totalGamesNumber = totalGamesQueryResult.rows[0].count;
-        const maxPage = Math.ceil((totalGamesNumber - 19) / 16) + 1;
+        if (!popularGameList.length) {
+            return res.status(204).send();
+        }
 
         res.status(200).send({
             data: {
