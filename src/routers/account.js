@@ -259,14 +259,14 @@ router.post(
             const { nickname } = req.body;
 
             const checkNicknameSql = `
-        SELECT
-            * 
-        FROM
-            "user" 
-        WHERE 
-            nickname = $1 
-        AND 
-            deleted_at IS NULL`;
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+                nickname = $1 
+            AND 
+                deleted_at IS NULL`;
 
             const value = [nickname];
 
@@ -334,6 +334,12 @@ router.post(
 //이메일 인증 확인
 router.post(
     '/email/auth',
+    body('code')
+        .trim()
+        .isLength({ min: 5, max: 5 })
+        .withMessage('인증코드는 5자리 숫자로 해주세요.')
+        .isNumeric()
+        .withMessage('인증코드는 숫자로만 구성되어야 합니다.'),
     body('email').trim().isEmail().withMessage('유효하지 않은 이메일 형식입니다.'),
     handleValidationErrors,
     async (req, res, next) => {
@@ -368,34 +374,24 @@ router.get(
         const { email } = req.query;
         try {
             const findIdxSql = `
-        SELECT 
-            idx 
-        FROM 
-            "user"
-        WHERE 
-            email = $1
-        AND 
-            deleted_at IS NULL`;
+            SELECT 
+                a.id 
+            FROM 
+                account_local a
+            JOIN 
+                "user" u ON a.user_idx = u.idx
+            WHERE 
+                u.email = $1
+            AND 
+                u.deleted_at IS NULL;
+        `;
             const findIdxvalue = [email];
             const results = await pool.query(findIdxSql, findIdxvalue);
 
             if (results.rows.length === 0) {
                 return res.status(400).send('일치하는 사용자가 없습니다.');
             }
-            const findIdSql = `
-        SELECT 
-            id 
-        FROM 
-            account_local 
-        WHERE 
-            user_idx = $1`;
-
-            const findIdValue = [results.rows[0].idx];
-            const idResults = await pool.query(findIdSql, findIdValue);
-            if (idResults.rows.length === 0) {
-                return res.status(400).send('일치하는 사용자가 없습니다.');
-            }
-            const foundId = idResults.rows[0].id;
+            const foundId = results.rows[0].id;
 
             return res.status(200).send({ id: foundId });
         } catch (error) {
@@ -462,12 +458,14 @@ router.get('/info', checkLogin, async (req, res, next) => {
         const { userIdx } = req.decoded;
         // 사용자 정보를 조회하는 쿼리
         const getUserInfoQuery = `
-         SELECT 
-            *
+        SELECT 
+            u.*, al.*, ak.*
         FROM
-            "user"
-         WHERE idx = $1
-      `;
+            "user" u
+        LEFT JOIN account_local al ON u.idx = al.user_idx
+        LEFT JOIN account_kakao ak ON u.idx = ak.user_idx
+        WHERE u.idx = $1;
+    `;
         // queryDatabase 함수를 사용하여 쿼리 실행
         const userInfo = await pool.query(getUserInfoQuery, [userIdx]);
 
@@ -499,6 +497,40 @@ router.put(
         const { nickname, email } = req.body;
         console.log(nickname, email);
         try {
+            //닉네임 중복 확인
+            const checkNicknameSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+                nickname = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const value = [nickname];
+
+            const nicknameResults = await pool.query(checkNicknameSql, value);
+            if (nicknameResults.rows.length > 0)
+                return res.status(409).send('닉네임이 이미 존재합니다.');
+
+            //이메일 중복 확인
+            const checkEmailSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+            email = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const checkEmailvalue = [email];
+            const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
+            if (emailResults.rows.length > 0) {
+                return res.status(409).send('이메일이 이미 존재합니다.');
+            }
+
             const newInfoSql = `
             UPDATE "user"
             SET
@@ -605,49 +637,28 @@ router.get('/notification', checkLogin, async (req, res, next) => {
         const { lastIdx } = req.query;
 
         // 사용자의 알람 조회
-        const getNotificationsQuery = `
-        SELECT 
-            * 
-        FROM 
-            notification 
-        WHERE 
-            user_idx = $1
-        AND 
-            idx > $2 
-        ORDER BY 
-            idx DESC 
-        LIMIT 20`;
-        const notifications = await pool.query(getNotificationsQuery, [userIdx, lastIdx]);
-        const returnLastIdx = notifications.rows[0].idx;
-        if (!notifications.rows || notifications.rows.length === 0) {
-            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
-        }
+        const noti = `SELECT
+            n.*,
+            p.title AS post_title,
+            g.title AS game_title
+        FROM
+            notification n
+        LEFT JOIN
+            post p ON n.post_idx = p.idx AND n.type = 1
+        LEFT JOIN
+            game g ON n.game_idx = g.idx AND (n.type = 2 OR n.type = 3)
+        WHERE
+            n.user_idx = $1
+        AND
+            n.idx > $2
+        ORDER BY
+            n.idx DESC
+        LIMIT 20;`;
 
-        // 알람 타입에 따른 title 조회
-        for (let notification of notifications.rows) {
-            if (notification.type === 1) {
-                // post 테이블 조회
-                const postQuery = `
-                SELECT 
-                    title 
-                FROM
-                    post 
-                WHERE
-                    idx = $1`;
-                const postResult = await pool.query(postQuery, [notification.post_idx]);
-                notification.postInfo = postResult.rows[0];
-            } else if (notification.type === 2 || notification.type === 3) {
-                // game 테이블 조회
-                const gameQuery = `
-                SELECT 
-                    title 
-                FROM
-                    game
-                WHERE
-                    idx = $1`;
-                const gameResult = await pool.query(gameQuery, [notification.game_idx]);
-                notification.gameInfo = gameResult.rows[0];
-            }
+        const notifications = await pool.query(noti, [userIdx, lastIdx]);
+        const returnLastIdx = notifications.rows[0].idx;
+        if (notifications.rows.length === 0) {
+            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
         res.status(200).send({ notifications: notifications.rows, lastIdx: returnLastIdx });
@@ -692,13 +703,13 @@ router.delete('/notification/:notificationId', checkLogin, async (req, res, next
     }
 });
 
-//카카오 로그인 경로 주기
+//카카오 로그인(회원가입)경로
 router.get('/auth/kakao', (req, res, next) => {
     const kakao = process.env.KAKAO_LOGIN_AUTH;
     res.redirect(kakao);
 });
 
-//카카오톡 회원가입(access토큰 받기)
+//카카오톡 로그인(회원가입)
 router.get('/kakao/callback', async (req, res, next) => {
     const { code } = req.query;
     REST_API_KEY = process.env.REST_API_KEY;
@@ -709,15 +720,13 @@ router.get('/kakao/callback', async (req, res, next) => {
         redirect_uri: REDIRECT_URI,
         code,
     };
-
+    let poolClient;
     try {
-        // tokenRequestData 객체를 URLSearchParams로 변환
         const params = new URLSearchParams();
         Object.keys(tokenRequestData).forEach((key) => {
             params.append(key, tokenRequestData[key]);
         });
 
-        console.log(params.toString());
         // Axios POST 요청
         const { data } = await axios.post(
             'https://kauth.kakao.com/oauth/token',
@@ -728,89 +737,189 @@ router.get('/kakao/callback', async (req, res, next) => {
                 },
             }
         );
-
-        console.log(data); // 응답 데이터 로깅
-        console.log('되는거냐고요 예?');
-        res.send(data); // 클라이언트에 응답 데이터 전송
-    } catch (error) {
-        next(error);
-    }
-});
-
-//카카오톡 토큰 정보 보기(access토큰)->쌉 필요없는거엿고
-router.get('/kakao/token_info', async (req, res, next) => {
-    const { ACCESS_TOKEN } = req.query;
-    const config = {
-        headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-        },
-    };
-
-    try {
-        const response = await axios.get(
-            'https://kapi.kakao.com/v1/user/access_token_info',
-            config
-        );
-        res.json(response.data);
-    } catch (error) {
-        console.error(`에러 발생: ${error}`);
-        res.status(500).send('서버 에러');
-    }
-});
-
-//카카오톡 회원 정보 보기(access토큰)
-router.get('/kakao/user_info', async (req, res, next) => {
-    const { ACCESS_TOKEN } = req.query;
-    const config = {
-        headers: {
-            Authorization: `Bearer ${ACCESS_TOKEN}`,
-        },
-    };
-
-    try {
+        const ACCESS_TOKEN = data.access_token;
+        console.log(ACCESS_TOKEN);
+        const config = {
+            headers: {
+                Authorization: `Bearer ${ACCESS_TOKEN}`,
+            },
+        };
         const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
-        res.json(response.data);
-    } catch (error) {
-        next(error);
-    }
-});
 
-//카카오톡 회원 정보 보기(ID토큰)
-router.post('/kakao/id-token', async (req, res, next) => {
-    const { ID_TOKEN } = req.body; // 클라이언트로부터 ID_TOKEN 받기
+        poolClient = await pool.connect();
+        await poolClient.query('BEGIN');
 
-    try {
-        const response = await axios.post(
-            'https://kauth.kakao.com/oauth/tokeninfo',
-            `id_token=${ID_TOKEN}`
+        const kakaoSql = `
+        SELECT
+            *
+        FROM
+            account_kakao ak
+        JOIN
+            "user" u ON ak.user_idx = u.idx
+        WHERE
+        ak.kakao_key = $1 AND u.deleted_at IS NULL`;
+        const kakaoResult = await poolClient.query(kakaoSql, [response.data.id]);
+
+        //중복 사용자가 없다면(회원가입)
+        if (kakaoResult.rows.length === 0) {
+            console.log('회원가입: ');
+            //이메일 중복 확인
+            const checkEmailSql = `
+            SELECT
+                *
+            FROM
+                "user"
+            WHERE
+            email = $1
+            AND
+                deleted_at IS NULL`;
+
+            const checkEmailvalue = [response.data.kakao_account.email];
+            const emailResults = await poolClient.query(checkEmailSql, checkEmailvalue);
+            if (emailResults.rows.length > 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(409).send('일반 회원가입으로 가입된 사용자입니다.');
+            }
+
+            //랜덤 닉네임 생성
+            function generateRandomString(length) {
+                let result = '';
+                let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let charactersLength = characters.length;
+                for (let i = 0; i < length; i++) {
+                    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+                }
+                return result;
+            }
+            let randomNickname = generateRandomString(20);
+            console.log(randomNickname);
+
+            //닉네임 중복 확인
+            const checkNicknameSql = `
+            SELECT
+                * 
+            FROM
+                "user" 
+            WHERE 
+                nickname = $1 
+            AND 
+                deleted_at IS NULL`;
+
+            const value = [randomNickname];
+            const nicknameResults = await poolClient.query(checkNicknameSql, value);
+            if (nicknameResults.rows.length > 0) {
+                while (nicknameResults.rows.length > 0) {
+                    randomNickname = generateRandomString(20);
+                    nicknameResults = await poolClient.query(checkNicknameSql, value);
+                }
+            }
+
+            const kakaoAuthSql = `
+              INSERT INTO
+                "user"(
+                    nickname,
+                    email,
+                    is_admin
+                    ) 
+            VALUES ($1, $2, $3)
+            RETURNING idx
+            `;
+            const kakaoResult = await poolClient.query(kakaoAuthSql, [
+                randomNickname,
+                response.data.kakao_account.email,
+                false, //굳이 관리자 권한 안 줘도 되겠지?
+            ]);
+            if (kakaoResult.rows.length === 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(200).send('카카오 회원가입 실패');
+            }
+
+            const userIdx = kakaoResult.rows[0].idx;
+
+            const insertAccountSql = `
+            INSERT INTO
+                account_kakao (
+                    user_idx, 
+                    kakao_key
+                    )
+            VALUES ($1, $2)
+            RETURNING *`;
+            const accountValues = [userIdx, response.data.id];
+            const accountResult = await poolClient.query(insertAccountSql, accountValues);
+
+            if (accountResult.rows.length === 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(200).send({ message: '카카오 회원가입 실패' });
+            }
+        }
+
+        const values = [response.data.id];
+
+        const { rows: userRows } = await poolClient.query(kakaoSql, values);
+
+        if (userRows.length === 0) {
+            return res.status(401).send({ message: '카카오톡 로그인 실패' });
+        }
+
+        const user = userRows[0];
+
+        await poolClient.query('COMMIT');
+
+        const token = jwt.sign(
+            {
+                id: response.data.id,
+                userIdx: user.user_idx,
+                isAdmin: user.is_admin,
+            },
+            process.env.SECRET_KEY,
+            {
+                expiresIn: '5h',
+            }
         );
-        res.send({ data: response.data });
+        return res.status(200).json({
+            idx: user.user_idx,
+            id: response.data.id,
+            email: response.data.kakao_account.email,
+            token: token,
+        });
     } catch (error) {
         next(error);
     }
 });
 
 //카카오톡 탈퇴
-router.post('/unlinkKakaoUser', async (req, res) => {
-    const accessToken = req.body.accessToken;
-
-    const config = {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Bearer ${accessToken}`,
-        },
-    };
+router.delete('/auth/kakao', checkLogin, async (req, res, next) => {
+    const SERVICE_APP_ADMIN_KEY = process.env.ADMIN_KEY;
+    console.log(SERVICE_APP_ADMIN_KEY);
+    const { id, userIdx } = req.decoded;
+    console.log(id, userIdx);
 
     try {
-        const response = await axios.post('https://kapi.kakao.com/v1/user/unlink', {}, config);
-        return res.json(response.data);
+        const response = await axios.post(
+            'https://kapi.kakao.com/v1/user/unlink',
+            `target_id_type=user_id&target_id=${id}`,
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    Authorization: `KakaoAK ${SERVICE_APP_ADMIN_KEY}`,
+                },
+            }
+        );
+        const deleteSql = `
+        UPDATE
+            "user"
+        SET
+            deleted_at = now()
+        WHERE
+            idx = $1`;
+
+        const deletequery = await pool.query(deleteSql, [userIdx]);
+        if (deletequery.rowCount === 0) {
+            return res.status(401).send({ message: '카카오 회원 탈퇴 실패' });
+        }
+        res.json('회원 탈퇴 성공');
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            success: false,
-            message: '사용자 연동 해제 실패',
-            error: error,
-        });
+        next(error);
     }
 });
 
