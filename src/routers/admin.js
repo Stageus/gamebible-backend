@@ -112,7 +112,9 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
             FROM
                 request
             WHERE 
-                deleted_at IS NULL`
+                deleted_at IS NULL
+            ORDER BY
+                created_at DESC`
         );
         const requestList = selectRequestSQLResult.rows;
 
