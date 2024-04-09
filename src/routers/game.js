@@ -48,7 +48,7 @@ router.post(
 );
 
 //게임목록불러오기
-router.get('/', async (req, res, next) => {
+router.get('/all', async (req, res, next) => {
     let { page } = req.query;
     //20개씩 불러오기
     const skip = (page - 1) * 20;
@@ -71,6 +71,10 @@ router.get('/', async (req, res, next) => {
         );
 
         const gameList = gameSelectSQLResult.rows;
+
+        if (!gameList.length) {
+            return res.status(204).send();
+        }
 
         const totalGamesNumberSQLResult = await pool.query(`
             SELECT
@@ -124,6 +128,10 @@ router.get(
             );
             const selectedGameList = searchSQLResult.rows;
 
+            if (!selectedGameList.length) {
+                return res.status(204).send();
+            }
+
             res.status(200).send({
                 data: selectedGameList,
             });
@@ -150,6 +158,17 @@ router.get('/popular', async (req, res, next) => {
     }
 
     try {
+        const totalGamesQueryResult = await pool.query(`
+            SELECT
+                count(*)
+            FROM
+                game g
+            WHERE
+                deleted_at IS NULL    
+        `);
+        const totalGamesNumber = totalGamesQueryResult.rows[0].count;
+        const maxPage = Math.ceil((totalGamesNumber - 19) / 16) + 1;
+
         const popularSelectSQLResult = await pool.query(
             //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
             `
@@ -179,16 +198,9 @@ router.get('/popular', async (req, res, next) => {
         );
         const popularGameList = popularSelectSQLResult.rows;
 
-        const totalGamesQueryResult = await pool.query(`
-            SELECT
-                count(*)
-            FROM
-                game g
-            WHERE
-                deleted_at IS NULL    
-        `);
-        const totalGamesNumber = totalGamesQueryResult.rows[0].count;
-        const maxPage = Math.ceil((totalGamesNumber - 19) / 16) + 1;
+        if (!popularGameList.length) {
+            return res.status(204).send();
+        }
 
         res.status(200).send({
             data: {
@@ -256,6 +268,9 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
         );
 
         const historyList = selectHistorySQLResult.rows;
+        if (!historyList.length) {
+            return res.status(204).send();
+        }
 
         res.status(200).send({ data: historyList });
     } catch (e) {
