@@ -25,8 +25,8 @@ CREATE TABLE account_local
 CREATE TABLE comment
 (
   idx        SERIAL                   NOT NULL,
-  user_idx   SERIAL                   NOT NULL,
-  post_idx   SERIAL                   NOT NULL,
+  user_idx   int                      NOT NULL,
+  post_idx   int                      NOT NULL,
   content    TEXT                     NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
@@ -48,7 +48,7 @@ CREATE TABLE email_verification
 CREATE TABLE game
 (
   idx        SERIAL                   NOT NULL,
-  user_idx   SERIAL                   NOT NULL,
+  user_idx   int                      NOT NULL,
   title      VARCHAR(40)              NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
@@ -59,7 +59,7 @@ CREATE TABLE game
 CREATE TABLE game_img
 (
   idx         SERIAL                   NOT NULL,
-  history_idx SERIAL                   NOT NULL,
+  history_idx int                      NOT NULL,
   img_path    VARCHAR                  NOT NULL,
   created_at  timestamp with time zone DEFAULT now(),
   deleted_at  timestamp with time zone NULL,
@@ -70,7 +70,7 @@ CREATE TABLE game_img
 CREATE TABLE game_img_banner
 (
   idx        SERIAL                   NOT NULL,
-  game_idx   SERIAL                   NOT NULL,
+  game_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
@@ -81,7 +81,7 @@ CREATE TABLE game_img_banner
 CREATE TABLE game_img_thumnail
 (
   idx        SERIAL                   NOT NULL,
-  game_idx   SERIAL                   NOT NULL,
+  game_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
@@ -92,10 +92,10 @@ CREATE TABLE game_img_thumnail
 CREATE TABLE history
 (
   idx        SERIAL                   NOT NULL,
-  game_idx   SERIAL                   NOT NULL,
-  user_idx   SERIAL                   NOT NULL,
-  content    TEXT                     NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  game_idx   int                      NOT NULL,
+  user_idx   int                      NOT NULL,
+  content    TEXT                     NULL,
+  created_at timestamp with time zone NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
   PRIMARY KEY (idx)
 );
@@ -104,8 +104,8 @@ CREATE TABLE history
 CREATE TABLE notification
 (
   idx        SERIAL                   NOT NULL,
-  type       SERIAL                   NOT NULL,
-  user_idx   SERIAL                   NOT NULL,
+  type       int                      NOT NULL,
+  user_idx   int                      NOT NULL,
   game_idx   int                      NULL,
   post_idx   int                      NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -125,11 +125,11 @@ CREATE TABLE notification_type
 CREATE TABLE post
 (
   idx        SERIAL                   NOT NULL,
-  game_idx   SERIAL                   NOT NULL,
-  user_idx   SERIAL                   NOT NULL,
-  title      VARCHAR(40)              NOT NULL,
-  content    TEXT                     NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  game_idx   int                      NOT NULL,
+  user_idx   int                      NOT NULL,
+  title      VARCHAR(40)              NULL,
+  content    TEXT                     NULL,
+  created_at timestamp with time zone NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
   PRIMARY KEY (idx)
 );
@@ -138,7 +138,7 @@ CREATE TABLE post
 CREATE TABLE post_img
 (
   idx        SERIAL                   NOT NULL,
-  post_idx   SERIAL                   NOT NULL,
+  post_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   deleted_at timestamp with time zone NULL,
@@ -149,7 +149,7 @@ CREATE TABLE post_img
 CREATE TABLE profile_img
 (
   idx        SERIAL                   NOT NULL,
-  user_idx   SERIAL                   NOT NULL,
+  user_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   deleted_at timestamp with time zone NULL,
@@ -159,7 +159,7 @@ CREATE TABLE profile_img
 CREATE TABLE request
 (
   idx          SERIAL                   NOT NULL,
-  user_idx     SERIAL                   NOT NULL,
+  user_idx     int                      NOT NULL,
   title        VARCHAR                  NOT NULL,
   is_confirmed BOOLEAN                  NOT NULL DEFAULT false,
   created_at   timestamp with time zone NOT NULL DEFAULT now(),
@@ -182,8 +182,8 @@ CREATE TABLE "user"
 CREATE TABLE view
 (
   idx      SERIAL NOT NULL,
-  post_idx SERIAL NOT NULL,
-  user_idx SERIAL NOT NULL,
+  post_idx int    NOT NULL,
+  user_idx int    NOT NULL,
   PRIMARY KEY (idx)
 );
 
