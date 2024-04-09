@@ -75,6 +75,18 @@ router.get('/all', checkLogin, async (req, res, next) => {
     const lastIdx = parseInt(req.query.lastidx) || 0;
     const postIdx = parseInt(req.query.postidx);
     try {
+        // totalcomments를 가져오는 별도의 쿼리
+        const totalCommentsResult = await pool.query(
+            `SELECT
+                COUNT(*)::int AS "totalComments"
+            FROM
+                comment
+            WHERE
+                post_idx = $1
+            AND 
+                deleted_at IS NULL`,
+            [postIdx]
+        );
         const userIdx = req.decoded.userIdx;
         //20개씩 불러오기
         const result = await pool.query(
@@ -96,13 +108,21 @@ router.get('/all', checkLogin, async (req, res, next) => {
             AND
                 comment.idx > $2
             ORDER BY
-                comment.idx ASC`,
+                comment.idx ASC
+            LIMIT
+                20`,
             [postIdx, lastIdx]
         );
-        res.status(200).send({
-            data: result.rows,
-            lastIdx: result.rows[result.rows.length - 1].idx,
-        });
+
+        if (!result.rows || result.rows.length === 0) {
+            res.status(200).end();
+        } else {
+            res.status(200).send({
+                data: result.rows,
+                lastIdx: result.rows[result.rows.length - 1].idx,
+                totalComments: totalCommentsResult.rows[0].totalComments,
+            });
+        }
     } catch (err) {
         next(err);
     }
