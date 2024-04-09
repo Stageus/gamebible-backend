@@ -1,0 +1,27 @@
+version: '3'
+services:
+    postgresql:
+        image: postgres:12.18
+        restart: always
+        container_name: gamebible-container
+        ports:
+            - '5432:5432'
+        environment:
+            POSTGRES_USER: psql_admin
+            POSTGRES_PASSWORD: 1234
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+            - ./init:/docker-entrypoint-initdb.d/
+    backend-server:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - '3001:3000'
+        env_file:
+            - .env
+        depends_on:
+            - postgresql
+
+volumes:
+    pgdata:
