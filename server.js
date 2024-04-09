@@ -25,7 +25,10 @@ app.use((req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
-    res.status(err.status || 500).send(err.stack);
+    console.log(err);
+    res.status(err.status || 500).send({
+        message: err.status ? err.message : '예상하지 못한 에러가 발생했습니다.',
+    });
 });
 
 app.listen(process.env.HTTP_PORT, () => {
