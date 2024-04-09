@@ -69,6 +69,11 @@ router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (r
     const postIdx = parseInt(req.params.postidx);
     try {
         const location = req.files[0].location;
+        if (!location) {
+            return res.status(400).send({
+                message: '이미지 없음',
+            });
+        }
         console.log(location);
         await pool.query(
             `INSERT INTO
