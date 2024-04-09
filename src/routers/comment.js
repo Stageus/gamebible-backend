@@ -113,11 +113,16 @@ router.get('/all', checkLogin, async (req, res, next) => {
                 20`,
             [postIdx, lastIdx]
         );
-        res.status(200).send({
-            data: result.rows,
-            lastIdx: result.rows[result.rows.length - 1].idx,
-            totalComments: totalCommentsResult.rows[0].totalComments,
-        });
+
+        if (!result.rows || result.rows.length === 0) {
+            res.status(200).end();
+        } else {
+            res.status(200).send({
+                data: result.rows,
+                lastIdx: result.rows[result.rows.length - 1].idx,
+                totalComments: totalCommentsResult.rows[0].totalComments,
+            });
+        }
     } catch (err) {
         next(err);
     }
