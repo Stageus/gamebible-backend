@@ -286,7 +286,7 @@ ALTER TABLE history
 ALTER TABLE post_img
   ADD CONSTRAINT FK_post_TO_post_img
     FOREIGN KEY (post_idx)
-    REFERENCES post (idx);
+    REFERENCES post(idx);
 
 ALTER TABLE game_img
   ADD CONSTRAINT FK_history_TO_game_img
@@ -337,6 +337,13 @@ INSERT INTO game
   (6, 2, 1, '오버워치 게시글3', '오버워치 게시글3'),
   (7, 2, 1, '오버워치 게시글4', '오버워치 게시글4');
 
+  INSERT INTO post_img
+  (idx, post_idx, img_path)
+  VALUES
+  (1,1, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png'),
+  (2,4, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png');
+
+
   INSERT INTO comment
   (idx, user_idx, post_idx, content)
   VALUES
@@ -385,10 +392,10 @@ INSERT INTO game
   (3, 2, 1, 1, null),
   (4, 2, 1, 2, null);
 
-INSERT INTO view
-(idx, post_idx, user_idx)
-VALUES
-(1,1,1),
-(2,1,1),
-(3,1,1),
-(4,2,1);
+  INSERT INTO view
+  (idx, post_idx, user_idx)
+  VALUES
+  (1,1,1),
+  (2,1,1),
+  (3,1,1),
+  (4,2,1);
