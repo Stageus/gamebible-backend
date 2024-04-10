@@ -251,7 +251,8 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
             `
             SELECT 
                 h.idx, 
-                TO_CHAR(h.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') || ' ' || u.nickname AS "title"
+                TO_CHAR(h.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
+                nickname
             FROM 
                 history h 
             JOIN 
@@ -270,7 +271,7 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
         const selectGameSQLResult = await pool.query(
             `
             SELECT
-                title
+                idx, title
             FROM
                 game
             WHERE
@@ -287,6 +288,7 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
 
         res.status(200).send({
             data: {
+                idx: game.idx,
                 title: game.title,
                 historyList: historyList,
             },
