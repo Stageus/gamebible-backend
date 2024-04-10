@@ -792,7 +792,6 @@ router.get('/kakao/callback', async (req, res, next) => {
                 return result;
             }
             let randomNickname = generateRandomString(20);
-            console.log(randomNickname);
 
             //닉네임 중복 확인
             const checkNicknameSql = `
