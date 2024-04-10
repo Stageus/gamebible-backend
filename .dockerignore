@@ -5,3 +5,7 @@ node_modules
 .prettierignore
 
 .prettierrc
+
+.env
+
+db.vuerd.json
