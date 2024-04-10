@@ -325,13 +325,17 @@ router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
             //히스토리 idx, gameidx, useridx, 내용, 시간, 닉네임 출력
             `
             SELECT    
-                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", content, h.created_at AS "createdAt", u.nickname 
+                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", title ,content, h.created_at AS "createdAt", u.nickname 
             FROM 
                 history h
             JOIN
                 "user" u
             ON
                 h.user_idx = u.idx
+            JOIN
+                game g
+            ON 
+                g.idx = h.game_idx
             WHERE 
                 h.idx = $1
             AND 
