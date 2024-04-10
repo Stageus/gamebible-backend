@@ -251,7 +251,8 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
             `
             SELECT 
                 h.idx, 
-                TO_CHAR(h.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') || ' ' || u.nickname AS "title"
+                TO_CHAR(h.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') AS "createdAt",
+                nickname
             FROM 
                 history h 
             JOIN 
@@ -267,12 +268,31 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
             [gameIdx]
         );
 
+        const selectGameSQLResult = await pool.query(
+            `
+            SELECT
+                idx, title
+            FROM
+                game
+            WHERE
+                idx = $1
+            `,
+            [gameIdx]
+        );
+        const game = selectGameSQLResult.rows[0];
+
         const historyList = selectHistorySQLResult.rows;
         if (!historyList.length) {
             return res.status(204).send();
         }
 
-        res.status(200).send({ data: historyList });
+        res.status(200).send({
+            data: {
+                idx: game.idx,
+                title: game.title,
+                historyList: historyList,
+            },
+        });
     } catch (e) {
         next(e);
     }
@@ -305,17 +325,13 @@ router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
             //히스토리 idx, gameidx, useridx, 내용, 시간, 닉네임 출력
             `
             SELECT    
-                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", g.title , content, h.created_at AS "createdAt", u.nickname 
+                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", content, h.created_at AS "createdAt", u.nickname 
             FROM 
                 history h
             JOIN
                 "user" u
             ON
                 h.user_idx = u.idx
-            JOIN
-                game g
-            ON
-                g.idx = h.game_idx 
             WHERE 
                 h.idx = $1
             AND 
