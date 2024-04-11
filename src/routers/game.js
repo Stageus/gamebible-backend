@@ -108,7 +108,6 @@ router.get(
     handleValidationErrors,
     async (req, res, next) => {
         const { title } = req.query;
-        console.log('title: ', title);
         try {
             const searchSQLResult = await pool.query(
                 `SELECT
@@ -128,7 +127,6 @@ router.get(
                 [`%${title}%`]
             );
             const selectedGameList = searchSQLResult.rows;
-            console.log('selectedGameList: ', selectedGameList);
 
             if (!selectedGameList.length) {
                 return res.status(204).send();
