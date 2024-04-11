@@ -46,7 +46,7 @@ router.post(
             const { rows: userRows } = await pool.query(userQuery, values);
 
             if (userRows.length === 0) {
-                return res.status(401).send({ message: '로그인 실패' });
+                return res.status(204).send({ message: '로그인 실패' });
             }
 
             const user = userRows[0];
@@ -175,7 +175,7 @@ router.post(
             if (userResult.rows.length === 0) {
                 await poolClient.query('ROLLBACK');
                 console.log('트랜젝션');
-                return res.status(401).send({ message: '회원가입 실패' });
+                return res.status(204).send({ message: '회원가입 실패' });
             }
             const userIdx = userResult.rows[0].idx;
 
@@ -194,7 +194,7 @@ router.post(
             if (accountResult.rows.length === 0) {
                 await poolClient.query('ROLLBACK');
                 console.log('트랜젝션');
-                return res.status(401).send({ message: '회원가입 실패' });
+                return res.status(204).send({ message: '회원가입 실패' });
             }
             await poolClient.query('COMMIT');
             return res.status(200).send('회원가입 성공');
@@ -356,7 +356,7 @@ router.post(
             code = $2`;
             const queryResult = await pool.query(checkEmailSql, [email, code]);
             if (queryResult.rows.length == 0) {
-                return res.status(400).send('잘못된 인증 코드입니다.');
+                return res.status(204).send('잘못된 인증 코드입니다.');
             }
             return res.status(200).send('이메일 인증이 완료되었습니다.');
         } catch (e) {
@@ -389,7 +389,7 @@ router.get(
             const results = await pool.query(findIdxSql, findIdxvalue);
 
             if (results.rows.length === 0) {
-                return res.status(400).send('일치하는 사용자가 없습니다.');
+                return res.status(204).send('일치하는 사용자가 없습니다.');
             }
             const foundId = results.rows[0].id;
 
@@ -443,7 +443,7 @@ router.put(
             const deletePwValue = [idx, hashedPw];
             const deletePwResult = await pool.query(deletePwSql, deletePwValue);
             if (deletePwResult.rows.length === 0) {
-                return res.status(400).send('비밀번호 변경 실패');
+                return res.status(204).send('비밀번호 변경 실패');
             }
             return res.status(200).send('비밀번호 변경 성공');
         } catch (error) {
@@ -470,7 +470,7 @@ router.get('/info', checkLogin, async (req, res, next) => {
         const userInfo = await pool.query(getUserInfoQuery, [userIdx]);
 
         if (userInfo.rows.length === 0) {
-            return res.status(401).send({ message: '내 정보 보기 실패' });
+            return res.status(204).send({ message: '내 정보 보기 실패' });
         }
 
         // 첫 번째 조회 결과 가져오기
@@ -497,6 +497,25 @@ router.put(
         const { nickname, email } = req.body;
         console.log(nickname, email);
         try {
+            const userInfoSql = `
+            SELECT
+                nickname,email
+            FROM
+                "user"
+            WHERE
+                idx=$1
+            AND 
+                deleted_at IS NULL
+            `;
+            const infoValue = [userIdx];
+
+            const userInfoResults = await pool.query(userInfoSql, infoValue);
+            if (userInfoResults.rows.length === 0)
+                return res.status(204).send('사용자 정보 조회 실패');
+
+            const { nickname: userNickname, email: userEmail } = userInfoResults.rows[0];
+            console.log(userNickname, userEmail);
+            console.log(nickname, email);
             //닉네임 중복 확인
             const checkNicknameSql = `
             SELECT
@@ -504,11 +523,13 @@ router.put(
             FROM
                 "user" 
             WHERE 
-                nickname = $1 
+                nickname = $1
             AND 
+                nickname <> $2 
+            AND
                 deleted_at IS NULL`;
 
-            const value = [nickname];
+            const value = [nickname, userNickname];
 
             const nicknameResults = await pool.query(checkNicknameSql, value);
             if (nicknameResults.rows.length > 0)
@@ -521,11 +542,13 @@ router.put(
             FROM
                 "user" 
             WHERE 
-            email = $1 
+                email = $1
+            AND 
+                email <> $2
             AND 
                 deleted_at IS NULL`;
 
-            const checkEmailvalue = [email];
+            const checkEmailvalue = [email, userEmail];
             const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
             if (emailResults.rows.length > 0) {
                 return res.status(409).send('이메일이 이미 존재합니다.');
@@ -543,7 +566,7 @@ router.put(
 
             const userInfo = await pool.query(newInfoSql, [userIdx, nickname, email]);
             if (userInfo.rows.length === 0) {
-                return res.status(401).send({ message: '내 정보 수정 실패' });
+                return res.status(204).send({ message: '내 정보 수정 실패' });
             }
 
             return res.status(200).send({ message: '내 정보 수정 성공' });
@@ -597,7 +620,7 @@ router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next
         const imageQuery = await poolClient.query(imageSql, [uploadedFile.location, userIdx]);
         if (imageQuery.rows.length === 0) {
             await poolClient.query(`ROLLBACK`);
-            return res.status(401).send({ message: '이미지 수정 실패' });
+            return res.status(204).send({ message: '이미지 수정 실패' });
         }
 
         await poolClient.query(`COMMIT`);
@@ -658,7 +681,7 @@ router.get('/notification', checkLogin, async (req, res, next) => {
         const notifications = await pool.query(noti, [userIdx, lastIdx]);
         const returnLastIdx = notifications.rows[0].idx;
         if (notifications.rows.length === 0) {
-            return res.status(400).send(userIdx + '번 사용자의 알람이 없습니다.');
+            return res.status(204).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
 
         res.status(200).send({ notifications: notifications.rows, lastIdx: returnLastIdx });
@@ -684,7 +707,7 @@ router.delete('/notification/:notificationId', checkLogin, async (req, res, next
         const checkResult = await pool.query(checkNotificationQuery, [notificationId, userIdx]);
 
         if (checkResult.rows.length === 0) {
-            return res.status(404).send('해당 알람을 찾을 수 없거나 삭제할 권한이 없습니다.');
+            return res.status(204).send('해당 알람을 찾을 수 없거나 삭제할 권한이 없습니다.');
         }
 
         // 알람 삭제 쿼리 실행
@@ -792,8 +815,6 @@ router.get('/kakao/callback', async (req, res, next) => {
                 return result;
             }
             let randomNickname = generateRandomString(20);
-            console.log(randomNickname);
-
             //닉네임 중복 확인
             const checkNicknameSql = `
             SELECT
@@ -831,7 +852,7 @@ router.get('/kakao/callback', async (req, res, next) => {
             ]);
             if (kakaoResult.rows.length === 0) {
                 await poolClient.query('ROLLBACK');
-                return res.status(200).send('카카오 회원가입 실패');
+                return res.status(204).send('카카오 회원가입 실패');
             }
 
             const userIdx = kakaoResult.rows[0].idx;
@@ -849,7 +870,7 @@ router.get('/kakao/callback', async (req, res, next) => {
 
             if (accountResult.rows.length === 0) {
                 await poolClient.query('ROLLBACK');
-                return res.status(200).send({ message: '카카오 회원가입 실패' });
+                return res.status(204).send({ message: '카카오 회원가입 실패' });
             }
         }
 
@@ -858,7 +879,7 @@ router.get('/kakao/callback', async (req, res, next) => {
         const { rows: userRows } = await poolClient.query(kakaoSql, values);
 
         if (userRows.length === 0) {
-            return res.status(401).send({ message: '카카오톡 로그인 실패' });
+            return res.status(204).send({ message: '카카오톡 로그인 실패' });
         }
 
         const user = userRows[0];
@@ -915,7 +936,7 @@ router.delete('/auth/kakao', checkLogin, async (req, res, next) => {
 
         const deletequery = await pool.query(deleteSql, [userIdx]);
         if (deletequery.rowCount === 0) {
-            return res.status(401).send({ message: '카카오 회원 탈퇴 실패' });
+            return res.status(204).send({ message: '카카오 회원 탈퇴 실패' });
         }
         res.json('회원 탈퇴 성공');
     } catch (error) {
