@@ -657,7 +657,7 @@ router.delete('/', checkLogin, async (req, res, next) => {
 router.get('/notification', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
-        const { lastIdx } = req.query;
+        const lastIdx = req.query.lastidx || 1;
 
         // 사용자의 알람 조회
         const noti = `SELECT
@@ -729,7 +729,7 @@ router.delete('/notification/:notificationId', checkLogin, async (req, res, next
 //카카오 로그인(회원가입)경로
 router.get('/auth/kakao', (req, res, next) => {
     const kakao = process.env.KAKAO_LOGIN_AUTH;
-    res.redirect(kakao);
+    res.status(200).send({ data: kakao });
 });
 
 //카카오톡 로그인(회원가입)
