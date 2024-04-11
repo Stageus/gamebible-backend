@@ -284,7 +284,7 @@ router.get('/:postidx', checkLogin, async (req, res, next) => {
                 post.deleted_at IS NULL`,
             [postIdx]
         );
-        if (userIdx == result.rows[0].user_idx) {
+        if (userIdx == result.rows[0].userIdx) {
             isAuthor = true;
         }
         res.status(200).send({
