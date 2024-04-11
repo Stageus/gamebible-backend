@@ -6,7 +6,7 @@ CREATE DATABASE gamebible OWNER test_deploy_admin;
 
 CREATE TABLE account_kakao
 (
-  user_idx  SERIAL NOT NULL,
+  user_idx  int    NOT NULL GENERATED ALWAYS AS IDENTITY, 
   kakao_key int    NOT NULL,
   PRIMARY KEY (user_idx)
 );
@@ -14,7 +14,7 @@ CREATE TABLE account_kakao
 
 CREATE TABLE account_local
 (
-  user_idx SERIAL  NOT NULL,
+  user_idx int     NOT NULL GENERATED ALWAYS AS IDENTITY,
   id       VARCHAR NOT NULL,
   pw       VARCHAR NOT NULL,
   PRIMARY KEY (user_idx)
@@ -24,7 +24,7 @@ CREATE TABLE account_local
 
 CREATE TABLE comment
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   user_idx   int                      NOT NULL,
   post_idx   int                      NOT NULL,
   content    TEXT                     NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE comment
 
 CREATE TABLE email_verification
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   code       VARCHAR                  NOT NULL,
   email      VARCHAR                  NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE email_verification
 
 CREATE TABLE game
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   user_idx   int                      NOT NULL,
   title      VARCHAR(40)              NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -58,7 +58,7 @@ CREATE TABLE game
 
 CREATE TABLE game_img
 (
-  idx         SERIAL                   NOT NULL,
+  idx         int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   history_idx int                      NOT NULL,
   img_path    VARCHAR                  NOT NULL,
   created_at  timestamp with time zone DEFAULT now(),
@@ -69,7 +69,7 @@ CREATE TABLE game_img
 
 CREATE TABLE game_img_banner
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   game_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -80,7 +80,7 @@ CREATE TABLE game_img_banner
 
 CREATE TABLE game_img_thumnail
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   game_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -91,7 +91,7 @@ CREATE TABLE game_img_thumnail
 
 CREATE TABLE history
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   game_idx   int                      NOT NULL,
   user_idx   int                      NOT NULL,
   content    TEXT                     NULL,
@@ -103,7 +103,7 @@ CREATE TABLE history
 
 CREATE TABLE notification
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   type       int                      NOT NULL,
   user_idx   int                      NOT NULL,
   game_idx   int                      NULL,
@@ -116,7 +116,7 @@ CREATE TABLE notification
 
 CREATE TABLE notification_type
 (
-  idx     SERIAL  NOT NULL,
+  idx     int     NOT NULL GENERATED ALWAYS AS IDENTITY,
   content VARCHAR NOT NULL,
   PRIMARY KEY (idx)
 );
@@ -124,7 +124,7 @@ CREATE TABLE notification_type
 
 CREATE TABLE post
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   game_idx   int                      NOT NULL,
   user_idx   int                      NOT NULL,
   title      VARCHAR(40)              NULL,
@@ -137,7 +137,7 @@ CREATE TABLE post
 
 CREATE TABLE post_img
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   post_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
@@ -148,7 +148,7 @@ CREATE TABLE post_img
 
 CREATE TABLE profile_img
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   user_idx   int                      NOT NULL,
   img_path   VARCHAR                  NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -158,7 +158,7 @@ CREATE TABLE profile_img
 
 CREATE TABLE request
 (
-  idx          SERIAL                   NOT NULL,
+  idx          int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   user_idx     int                      NOT NULL,
   title        VARCHAR                  NOT NULL,
   is_confirmed BOOLEAN                  NOT NULL DEFAULT false,
@@ -170,7 +170,7 @@ CREATE TABLE request
 
 CREATE TABLE "user"
 (
-  idx        SERIAL                   NOT NULL,
+  idx        int                      NOT NULL GENERATED ALWAYS AS IDENTITY,
   is_admin   BOOLEAN                  NOT NULL,
   nickname   VARCHAR                  NOT NULL,
   email      VARCHAR                  NOT NULL,
@@ -181,7 +181,7 @@ CREATE TABLE "user"
 
 CREATE TABLE view
 (
-  idx      SERIAL NOT NULL,
+  idx      int    NOT NULL GENERATED ALWAYS AS IDENTITY,
   post_idx int    NOT NULL,
   user_idx int    NOT NULL,
   PRIMARY KEY (idx)
