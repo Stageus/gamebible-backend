@@ -355,10 +355,10 @@ INSERT INTO game
 
 
   INSERT INTO game_img_thumnail
-  (idx, game_idx, img_path)
+  (idx, game_idx, img_path, deleted_at)
   VALUES
-  (1, 1, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png'),
-  (2, 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png');
+  (1, 1, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  (2, 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null);
 
 
   INSERT INTO game_img_banner
