@@ -371,17 +371,20 @@ INSERT INTO game
   ( 5, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png', null),
   ( 6, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
   ( 7, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
-  ( 8, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  ( 8, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null);
 
 
   INSERT INTO game_img_banner
   ( game_idx, img_path)
   VALUES
   ( 1, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EB%B0%B0%EB%84%88_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png'),
-  ( 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EB%B0%B0%EB%84%88_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png');
-
-
-  ( 5, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png', null),
+  ( 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EB%B0%B0%EB%84%88_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png'),
+  ( 3, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png'),
+  ( 4, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png'),
+  ( 5, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png'),
+  ( 6, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png'),
+  ( 7, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png'),
+  ( 8, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png');
 
   INSERT INTO history
   ( game_idx, user_idx, content)
