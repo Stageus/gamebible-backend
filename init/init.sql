@@ -324,7 +324,14 @@ INSERT INTO game
   ( user_idx, title)
   VALUES 
   ( 1, '리그오브레전드'),
-  ( 3, '오버워치');
+  ( 3, '오버워치'),
+  ( 1, '산리오'),
+  ( 1, '쿠로미'),
+  ( 1, '시나모롤'),
+  ( 1, '폼폼푸린'),
+  ( 1, '피파'),
+  ( 1, '디아블로'),
+  ( 1, '포켓몬고');
 
   INSERT INTO post
   ( game_idx, user_idx, title, content)
@@ -358,7 +365,13 @@ INSERT INTO game
   ( game_idx, img_path, deleted_at)
   VALUES
   ( 1, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
-  ( 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null);
+  ( 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  ( 3, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  ( 4, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  ( 5, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png', null),
+  ( 6, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  ( 7, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
+  ( 8, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EC%8D%B8%EB%84%A4%EC%9D%BC_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png', null),
 
 
   INSERT INTO game_img_banner
@@ -366,6 +379,9 @@ INSERT INTO game
   VALUES
   ( 1, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EB%B0%B0%EB%84%88_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png'),
   ( 2, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80/%EB%B0%B0%EB%84%88_%EA%B8%B0%EB%B3%B8%EC%9D%B4%EB%AF%B8%EC%A7%80.png');
+
+
+  ( 5, 'https://gamebible.s3.ap-northeast-2.amazonaws.com/1712131802033_%EC%8B%9C%EB%82%98%EB%AA%A8%EB%A1%A4.png', null),
 
   INSERT INTO history
   ( game_idx, user_idx, content)
@@ -388,9 +404,14 @@ INSERT INTO game
   ( type, user_idx, game_idx, post_idx)
   VALUES
   ( 1, 1, null, 1),
-  ( 1, 1, null, 1),
-  ( 2, 1, 1, null),
-  ( 2, 1, 2, null);
+  ( 2, 1, 2, null),
+  ( 3, 1, 3, null),
+  ( 1, 2, null, 1),
+  ( 2, 2, 1, null),
+  ( 3, 1, 1, null),
+  ( 1, 3, null, 1),
+  ( 2, 3, 2, null),
+  ( 3, 3, 2, null);
 
   INSERT INTO view
   ( post_idx, user_idx)
