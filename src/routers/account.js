@@ -497,6 +497,25 @@ router.put(
         const { nickname, email } = req.body;
         console.log(nickname, email);
         try {
+            const userInfoSql = `
+            SELECT
+                nickname,email
+            FROM
+                "user"
+            WHERE
+                idx=$1
+            AND 
+                deleted_at IS NULL
+            `;
+            const infoValue = [userIdx];
+
+            const userInfoResults = await pool.query(userInfoSql, infoValue);
+            if (userInfoResults.rows.length === 0)
+                return res.status(204).send('사용자 정보 조회 실패');
+
+            const { nickname: userNickname, email: userEmail } = userInfoResults.rows[0];
+            console.log(userNickname, userEmail);
+            console.log(nickname, email);
             //닉네임 중복 확인
             const checkNicknameSql = `
             SELECT
@@ -504,11 +523,13 @@ router.put(
             FROM
                 "user" 
             WHERE 
-                nickname = $1 
+                nickname = $1
             AND 
+                nickname <> $2 
+            AND
                 deleted_at IS NULL`;
 
-            const value = [nickname];
+            const value = [nickname, userNickname];
 
             const nicknameResults = await pool.query(checkNicknameSql, value);
             if (nicknameResults.rows.length > 0)
@@ -521,11 +542,13 @@ router.put(
             FROM
                 "user" 
             WHERE 
-            email = $1 
+                email = $1
+            AND 
+                email <> $2
             AND 
                 deleted_at IS NULL`;
 
-            const checkEmailvalue = [email];
+            const checkEmailvalue = [email, userEmail];
             const emailResults = await pool.query(checkEmailSql, checkEmailvalue);
             if (emailResults.rows.length > 0) {
                 return res.status(409).send('이메일이 이미 존재합니다.');
