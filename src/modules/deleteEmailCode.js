@@ -14,7 +14,7 @@ async function deleteExpiredCodes(pool) {
 async function deleteCode(pool) {
     setTimeout(() => {
         deleteExpiredCodes(pool);
-    }, 190000);
+    }, 5 * 60 * 1000);
 }
 
 module.exports = deleteCode;
