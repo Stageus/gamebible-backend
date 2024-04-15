@@ -20,7 +20,7 @@ router.post(
         let poolClient;
 
         try {
-            if (!req.files.thumbnail || !req.files.banner) res.status(400).send();
+            if (!req.files.thumbnail || !req.files.banner) res.status(400).send('이미지 없음');
 
             poolClient = await pool.connect();
 
@@ -54,7 +54,7 @@ router.post(
             );
 
             const existingGame = selectEixsistingGameSQLResult.rows[0];
-            if (existingGame) throw new Error('이미존재하는게임');
+            if (existingGame) res.status(409).send('이미존재하는 게임입니다');
 
             //새로운게임추가
             const insertGameSQLResult = await poolClient.query(
@@ -94,8 +94,9 @@ router.post(
                 [gameIdx, banner[0].location]
             );
 
-            res.status(201).send();
             await poolClient.query('COMMIT');
+
+            res.status(201).send();
         } catch (e) {
             await poolClient.query('ROLLBACK');
             next(e);
