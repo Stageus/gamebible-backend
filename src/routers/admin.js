@@ -10,12 +10,18 @@ router.post(
     '/game',
     checkLogin,
     checkAdmin,
-    uploadS3.array('images', 2),
+    uploadS3.fields([
+        { name: 'thumbnail', maxCount: 1 },
+        { name: 'banner', maxCount: 1 },
+    ]),
     async (req, res, next) => {
         const { requestIdx } = req.body;
+        const { thumbnail, banner } = req.files;
         let poolClient;
 
         try {
+            if (!req.files.thumbnail || !req.files.banner) res.status(400).send();
+
             poolClient = await pool.connect();
 
             await poolClient.query('BEGIN');
@@ -48,9 +54,7 @@ router.post(
             );
 
             const existingGame = selectEixsistingGameSQLResult.rows[0];
-            if (existingGame) {
-                throw new Error('이미존재하는게임');
-            }
+            if (existingGame) throw new Error('이미존재하는게임');
 
             //새로운게임추가
             const insertGameSQLResult = await poolClient.query(
@@ -73,16 +77,13 @@ router.post(
                 [gameIdx, request.userIdx]
             );
 
-            const thumnailLocation = req.files[0].location;
-            const bannerLocation = req.files[1].location;
-
             //게임 썸네일, 배너이미지 등록
             await poolClient.query(
                 `
                 INSERT INTO
                     game_img_thumnail(game_idx, img_path)
                 VALUES ( $1, $2 )`,
-                [gameIdx, thumnailLocation]
+                [gameIdx, thumbnail[0].location]
             );
 
             await poolClient.query(
@@ -90,7 +91,7 @@ router.post(
                 INSERT INTO
                     game_img_banner(game_idx, img_path)
                 VALUES ( $1, $2 )`,
-                [gameIdx, bannerLocation]
+                [gameIdx, banner[0].location]
             );
 
             res.status(201).send();
