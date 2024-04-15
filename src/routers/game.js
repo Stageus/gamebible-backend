@@ -447,11 +447,9 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         const latestHistory = getLatestHistorySQLResult.rows[0];
 
         res.status(201).send({
-            data: {
-                historyIdx: temporaryHistoryIdx,
-                title: latestHistory.title,
-                content: latestHistory.content,
-            },
+            historyIdx: temporaryHistoryIdx,
+            title: latestHistory.title,
+            content: latestHistory.content,
         });
     } catch (e) {
         next(e);

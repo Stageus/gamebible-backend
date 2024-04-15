@@ -20,7 +20,7 @@ router.post(
         let poolClient;
 
         try {
-            if (!req.files.thumbnail || !req.files.banner) res.status(400).send('이미지 없음');
+            if (!thumbnail || !banner) res.status(400).send('이미지 없음');
 
             poolClient = await pool.connect();
 
