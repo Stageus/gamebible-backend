@@ -28,9 +28,7 @@ router.post(
                 [title]
             );
             const existingGame = selectGameSQLResult.rows[0];
-            if (existingGame) {
-                return res.status(409).send({ message: '이미존재하는 게임' });
-            }
+            if (existingGame) return res.status(409).send({ message: '이미존재하는 게임' });
 
             const sql = `
                 INSERT INTO 
@@ -72,9 +70,7 @@ router.get('/all', async (req, res, next) => {
 
         const gameList = gameSelectSQLResult.rows;
 
-        if (!gameList.length) {
-            return res.status(204).send();
-        }
+        if (!gameList.length) return res.status(204).send();
 
         const totalGamesNumberSQLResult = await pool.query(`
             SELECT
@@ -128,9 +124,7 @@ router.get(
             );
             const selectedGameList = searchSQLResult.rows;
 
-            if (!selectedGameList.length) {
-                return res.status(204).send();
-            }
+            if (!selectedGameList.length) return res.status(204).send();
 
             res.status(200).send({
                 data: selectedGameList,
@@ -198,9 +192,7 @@ router.get('/popular', async (req, res, next) => {
         );
         const popularGameList = popularSelectSQLResult.rows;
 
-        if (!popularGameList.length) {
-            return res.status(204).send();
-        }
+        if (!popularGameList.length) return res.status(204).send();
 
         res.status(200).send({
             data: {
@@ -282,9 +274,7 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
         const game = selectGameSQLResult.rows[0];
 
         const historyList = selectHistorySQLResult.rows;
-        if (!historyList.length) {
-            return res.status(204).send();
-        }
+        if (!historyList.length) return res.status(204).send();
 
         res.status(200).send({
             data: {

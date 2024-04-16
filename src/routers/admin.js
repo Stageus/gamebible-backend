@@ -20,7 +20,7 @@ router.post(
         let poolClient;
 
         try {
-            if (!thumbnail || !banner) res.status(400).send('이미지 없음');
+            if (!thumbnail || !banner) return res.status(400).send('이미지 없음');
 
             poolClient = await pool.connect();
 
@@ -40,6 +40,7 @@ router.post(
                 [requestIdx]
             );
             const request = deleteRequestSQLResult.rows[0];
+            console.log('request: ', request.title);
 
             //기존 게임중복확인
             const selectEixsistingGameSQLResult = await poolClient.query(
@@ -49,13 +50,16 @@ router.post(
                 FROM
                     game
                 WHERE
-                    title = $1`,
+                    title = $1
+                AND
+                    deleted_at IS NULL`,
                 [request.title]
             );
 
             const existingGame = selectEixsistingGameSQLResult.rows[0];
-            if (existingGame) res.status(409).send('이미존재하는 게임입니다');
-
+            console.log('existingGame: ', existingGame);
+            if (existingGame) return res.status(409).send('이미존재하는 게임입니다');
+            console.log('실행되면 안되는 코드');
             //새로운게임추가
             const insertGameSQLResult = await poolClient.query(
                 `
@@ -121,9 +125,7 @@ router.get('/game/request/all', checkLogin, checkAdmin, async (req, res, next) =
         const requestList = selectRequestSQLResult.rows;
 
         //요청없는 경우
-        if (!requestList.length) {
-            return res.status(204).send();
-        }
+        if (!requestList.length) return res.status(204).send();
 
         res.status(200).send({
             data: requestList,
