@@ -674,6 +674,8 @@ router.get('/notification', checkLogin, async (req, res, next) => {
             n.user_idx = $1
         AND
             n.idx > $2
+        AND 
+            n.deleted_at IS NULL
         ORDER BY
             n.idx DESC
         LIMIT 20;`;
