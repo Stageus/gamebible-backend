@@ -112,7 +112,7 @@ router.get(
                 FROM
                     game g 
                 JOIN
-                    game_img_thumnail t 
+                    game_img_thumbnail t 
                 ON 
                     g.idx = t.game_idx
                 WHERE
@@ -176,7 +176,7 @@ router.get('/popular', async (req, res, next) => {
                 ON 
                     g.idx = p.game_idx 
                 JOIN 
-                    game_img_thumnail t 
+                    game_img_thumbnail t 
                 ON 
                     g.idx = t.game_idx 
                 WHERE 
@@ -344,13 +344,13 @@ router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
 
 //게임 수정하기
 router.put(
-    '/:gameidx/wiki/:historyidx',
+    '/:gameidx/wiki',
     checkLogin,
     body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
-        const historyIdx = req.params.historyidx;
         const gameIdx = req.params.gameidx;
+        const { userIdx } = req.decoded;
         const { content } = req.body;
 
         let poolClient = null;
@@ -379,18 +379,16 @@ router.put(
 
             // 새로운 히스토리 등록
             await poolClient.query(
-                `UPDATE  
-                    history
-                SET
-                    content = $1, created_at = now()
-                WHERE
-                    idx = $2`,
-                [content, historyIdx]
+                `INSERT INTO  
+                    history(game_idx, user_idx, content)
+                VALUES
+                    ($1, $2, $3)`,
+                [gameIdx, userIdx, content]
             );
 
             await poolClient.query(`COMMIT`);
 
-            res.status(200).send();
+            res.status(201).send();
         } catch (e) {
             await poolClient.query(`ROLLBACK`);
             next(e);
@@ -451,7 +449,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
 
 // 위키 이미지 업로드
 router.post(
-    '/:gameidx/wiki/:historyidx/image',
+    '/:gameidx/wiki/image',
     checkLogin,
     uploadS3.array('images', 1),
     async (req, res, next) => {

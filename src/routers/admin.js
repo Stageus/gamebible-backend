@@ -92,7 +92,7 @@ router.post(
             await poolClient.query(
                 `
                 INSERT INTO
-                    game_img_thumnail(game_idx, img_path)
+                    game_img_thumbnail(game_idx, img_path)
                 VALUES ( $1, $2 )`,
                 [gameIdx, thumbnail[0].location]
             );
@@ -259,7 +259,7 @@ router.post(
 
 //대표이미지 등록하기
 router.post(
-    '/game/:gameidx/thumnail',
+    '/game/:gameidx/thumbnail',
     checkLogin,
     checkAdmin,
     uploadS3.array('images', 1),
@@ -274,7 +274,7 @@ router.post(
             //기존 썸네일 삭제
             await poolClient.query(
                 `UPDATE
-                    game_img_thumnail
+                    game_img_thumbnail
                 SET
                     deleted_at = now()
                 WHERE
@@ -286,7 +286,7 @@ router.post(
             //새로운 썸네일 등록
             await poolClient.query(
                 `INSERT INTO
-                    game_img_thumnail(game_idx, img_path)
+                    game_img_thumbnail(game_idx, img_path)
                 VALUES 
                     ( $1, $2 )`,
                 [gameIdx, location]
