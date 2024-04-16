@@ -24,7 +24,9 @@ router.post(
                 FROM
                     game
                 WHERE
-                    title = $1`,
+                    title = $1
+                AND
+                    deleted_at IS NULL`,
                 [title]
             );
             const existingGame = selectGameSQLResult.rows[0];
