@@ -1,10 +1,9 @@
 const router = require('express').Router();
-const moment = require('moment');
 const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
-const { generateNotification, generateNotifications } = require('../modules/generateNotification');
+const { generateNotifications } = require('../modules/generateNotification');
 const { uploadS3 } = require('../middlewares/upload');
 
 //게임생성요청
