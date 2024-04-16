@@ -24,8 +24,6 @@ router.post(
 
             poolClient = await pool.connect();
 
-            await poolClient.query('BEGIN');
-
             //요청삭제, 제목,유저idx반환
             const deleteRequestSQLResult = await poolClient.query(
                 `
@@ -40,7 +38,9 @@ router.post(
                 [requestIdx]
             );
             const request = deleteRequestSQLResult.rows[0];
-            console.log('request: ', request.title);
+
+            //트랜잭션 시작
+            await poolClient.query('BEGIN');
 
             //기존 게임중복확인
             const selectEixsistingGameSQLResult = await poolClient.query(
@@ -57,9 +57,11 @@ router.post(
             );
 
             const existingGame = selectEixsistingGameSQLResult.rows[0];
-            console.log('existingGame: ', existingGame);
-            if (existingGame) return res.status(409).send({ message: '이미존재하는 게임입니다' });
-            console.log('실행되면 안되는 코드');
+            if (existingGame) {
+                await poolClient.query('ROLLBACK');
+                return res.status(409).send({ message: '이미존재하는 게임입니다' });
+            }
+
             //새로운게임추가
             const insertGameSQLResult = await poolClient.query(
                 `
@@ -105,7 +107,7 @@ router.post(
             await poolClient.query('ROLLBACK');
             next(e);
         } finally {
-            poolClient.release();
+            if (poolClient) poolClient.release();
         }
     }
 );
