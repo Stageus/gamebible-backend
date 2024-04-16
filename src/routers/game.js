@@ -454,9 +454,10 @@ router.post(
     uploadS3.array('images', 1),
     async (req, res, next) => {
         const historyIdx = req.params.historyidx;
+        const images = req.files;
+
         try {
-            const location = req.files[0].location;
-            console.log(location);
+            if (!images) return res.status(400).send({ message: '이미지가 없습니다' });
 
             await pool.query(
                 `INSERT INTO

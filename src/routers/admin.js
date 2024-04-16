@@ -15,6 +15,8 @@ router.post(
         { name: 'banner', maxCount: 1 },
     ]),
     async (req, res, next) => {
+        console.log(req.files);
+
         const { requestIdx } = req.body;
         const { thumbnail, banner } = req.files;
         let poolClient;
