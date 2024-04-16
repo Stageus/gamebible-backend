@@ -112,7 +112,7 @@ router.get(
                 FROM
                     game g 
                 JOIN
-                    game_img_thumnail t 
+                    game_img_thumbnail t 
                 ON 
                     g.idx = t.game_idx
                 WHERE
@@ -176,7 +176,7 @@ router.get('/popular', async (req, res, next) => {
                 ON 
                     g.idx = p.game_idx 
                 JOIN 
-                    game_img_thumnail t 
+                    game_img_thumbnail t 
                 ON 
                     g.idx = t.game_idx 
                 WHERE 
