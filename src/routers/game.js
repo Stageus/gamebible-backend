@@ -449,7 +449,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
 
 // 위키 이미지 업로드
 router.post(
-    '/:gameidx/wiki/:historyidx/image',
+    '/:gameidx/wiki/image',
     checkLogin,
     uploadS3.array('images', 1),
     async (req, res, next) => {
