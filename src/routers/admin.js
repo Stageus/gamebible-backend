@@ -15,8 +15,7 @@ router.post(
         { name: 'banner', maxCount: 1 },
     ]),
     async (req, res, next) => {
-        console.log(req.files);
-
+        const { userIdx } = req.decoded;
         const { requestIdx } = req.body;
         const { thumbnail, banner } = req.files;
         let poolClient;
@@ -77,12 +76,16 @@ router.post(
             );
             const gameIdx = insertGameSQLResult.rows[0].gameIdx;
 
+            const newPostTitle = `새로운 게임 "${request.title}"이 생성되었습니다`;
+            const newPostContent = `많은 이용부탁드립니다~`;
+
             await poolClient.query(
                 `
-                INSERT INTO 
-                    history(game_idx, user_idx)
-                VALUES( $1, $2 )`,
-                [gameIdx, request.userIdx]
+                INSERT INTO
+                    post(title, content, user_idx, game_idx)
+                VALUES
+                    ( $1, $2, $3, $4 )`,
+                [newPostTitle, newPostContent, userIdx, gameIdx]
             );
 
             //게임 썸네일, 배너이미지 등록

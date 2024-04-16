@@ -209,6 +209,7 @@ router.get('/popular', async (req, res, next) => {
         next(e);
     }
 });
+
 //배너이미지가져오기
 router.get('/:gameidx/banner', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
@@ -399,6 +400,7 @@ router.put(
         }
     }
 );
+
 // 임시위키생성
 router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
@@ -447,6 +449,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         next(e);
     }
 });
+
 // 위키 이미지 업로드
 router.post(
     '/:gameidx/wiki/:historyidx/image',
