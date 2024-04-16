@@ -1,10 +1,9 @@
 const router = require('express').Router();
-const moment = require('moment');
 const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
-const { generateNotification, generateNotifications } = require('../modules/generateNotification');
+const { generateNotifications } = require('../modules/generateNotification');
 const { uploadS3 } = require('../middlewares/upload');
 
 //게임생성요청
@@ -24,13 +23,13 @@ router.post(
                 FROM
                     game
                 WHERE
-                    title = $1`,
+                    title = $1
+                AND
+                    deleted_at IS NULL`,
                 [title]
             );
             const existingGame = selectGameSQLResult.rows[0];
-            if (existingGame) {
-                return res.status(409).send({ message: '이미존재하는 게임' });
-            }
+            if (existingGame) return res.status(409).send({ message: '이미존재하는 게임' });
 
             const sql = `
                 INSERT INTO 
@@ -72,9 +71,7 @@ router.get('/all', async (req, res, next) => {
 
         const gameList = gameSelectSQLResult.rows;
 
-        if (!gameList.length) {
-            return res.status(204).send();
-        }
+        if (!gameList.length) return res.status(204).send();
 
         const totalGamesNumberSQLResult = await pool.query(`
             SELECT
@@ -128,9 +125,7 @@ router.get(
             );
             const selectedGameList = searchSQLResult.rows;
 
-            if (!selectedGameList.length) {
-                return res.status(204).send();
-            }
+            if (!selectedGameList.length) return res.status(204).send();
 
             res.status(200).send({
                 data: selectedGameList,
@@ -198,9 +193,7 @@ router.get('/popular', async (req, res, next) => {
         );
         const popularGameList = popularSelectSQLResult.rows;
 
-        if (!popularGameList.length) {
-            return res.status(204).send();
-        }
+        if (!popularGameList.length) return res.status(204).send();
 
         res.status(200).send({
             data: {
@@ -215,6 +208,7 @@ router.get('/popular', async (req, res, next) => {
         next(e);
     }
 });
+
 //배너이미지가져오기
 router.get('/:gameidx/banner', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
@@ -282,9 +276,7 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
         const game = selectGameSQLResult.rows[0];
 
         const historyList = selectHistorySQLResult.rows;
-        if (!historyList.length) {
-            return res.status(204).send();
-        }
+        if (!historyList.length) return res.status(204).send();
 
         res.status(200).send({
             data: {
@@ -407,6 +399,7 @@ router.put(
         }
     }
 );
+
 // 임시위키생성
 router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
     const gameIdx = req.params.gameidx;
@@ -455,6 +448,7 @@ router.post('/:gameidx/wiki', checkLogin, async (req, res, next) => {
         next(e);
     }
 });
+
 // 위키 이미지 업로드
 router.post(
     '/:gameidx/wiki/:historyidx/image',
@@ -462,9 +456,10 @@ router.post(
     uploadS3.array('images', 1),
     async (req, res, next) => {
         const historyIdx = req.params.historyidx;
+        const images = req.files;
+
         try {
-            const location = req.files[0].location;
-            console.log(location);
+            if (!images) return res.status(400).send({ message: '이미지가 없습니다' });
 
             await pool.query(
                 `INSERT INTO

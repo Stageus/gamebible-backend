@@ -15,16 +15,15 @@ router.post(
         { name: 'banner', maxCount: 1 },
     ]),
     async (req, res, next) => {
+        const { userIdx } = req.decoded;
         const { requestIdx } = req.body;
         const { thumbnail, banner } = req.files;
         let poolClient;
 
         try {
-            if (!thumbnail || !banner) res.status(400).send('이미지 없음');
+            if (!thumbnail || !banner) return res.status(400).send({ message: '이미지 없음' });
 
             poolClient = await pool.connect();
-
-            await poolClient.query('BEGIN');
 
             //요청삭제, 제목,유저idx반환
             const deleteRequestSQLResult = await poolClient.query(
@@ -41,6 +40,9 @@ router.post(
             );
             const request = deleteRequestSQLResult.rows[0];
 
+            //트랜잭션 시작
+            await poolClient.query('BEGIN');
+
             //기존 게임중복확인
             const selectEixsistingGameSQLResult = await poolClient.query(
                 `
@@ -49,12 +51,17 @@ router.post(
                 FROM
                     game
                 WHERE
-                    title = $1`,
+                    title = $1
+                AND
+                    deleted_at IS NULL`,
                 [request.title]
             );
 
             const existingGame = selectEixsistingGameSQLResult.rows[0];
-            if (existingGame) res.status(409).send('이미존재하는 게임입니다');
+            if (existingGame) {
+                await poolClient.query('ROLLBACK');
+                return res.status(409).send({ message: '이미존재하는 게임입니다' });
+            }
 
             //새로운게임추가
             const insertGameSQLResult = await poolClient.query(
@@ -69,12 +76,16 @@ router.post(
             );
             const gameIdx = insertGameSQLResult.rows[0].gameIdx;
 
+            const newPostTitle = `새로운 게임 "${request.title}"이 생성되었습니다`;
+            const newPostContent = `많은 이용부탁드립니다~`;
+
             await poolClient.query(
                 `
-                INSERT INTO 
-                    history(game_idx, user_idx)
-                VALUES( $1, $2 )`,
-                [gameIdx, request.userIdx]
+                INSERT INTO
+                    post(title, content, user_idx, game_idx)
+                VALUES
+                    ( $1, $2, $3, $4 )`,
+                [newPostTitle, newPostContent, userIdx, gameIdx]
             );
 
             //게임 썸네일, 배너이미지 등록
@@ -101,7 +112,7 @@ router.post(
             await poolClient.query('ROLLBACK');
             next(e);
         } finally {
-            poolClient.release();
+            if (poolClient) poolClient.release();
         }
     }
 );
@@ -121,9 +132,7 @@ router.get('/game/request/all', checkLogin, checkAdmin, async (req, res, next) =
         const requestList = selectRequestSQLResult.rows;
 
         //요청없는 경우
-        if (!requestList.length) {
-            return res.status(204).send();
-        }
+        if (!requestList.length) return res.status(204).send();
 
         res.status(200).send({
             data: requestList,
