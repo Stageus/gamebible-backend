@@ -20,7 +20,7 @@ router.post(
         let poolClient;
 
         try {
-            if (!thumbnail || !banner) return res.status(400).send('이미지 없음');
+            if (!thumbnail || !banner) return res.status(400).send({ message: '이미지 없음' });
 
             poolClient = await pool.connect();
 
@@ -58,7 +58,7 @@ router.post(
 
             const existingGame = selectEixsistingGameSQLResult.rows[0];
             console.log('existingGame: ', existingGame);
-            if (existingGame) return res.status(409).send('이미존재하는 게임입니다');
+            if (existingGame) return res.status(409).send({ message: '이미존재하는 게임입니다' });
             console.log('실행되면 안되는 코드');
             //새로운게임추가
             const insertGameSQLResult = await poolClient.query(
