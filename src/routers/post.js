@@ -46,30 +46,16 @@ router.post(
     }
 );
 
-//게시글 이미지 업로드
-router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
-    const postIdx = parseInt(req.params.postidx);
+// 게시글 이미지 업로드
+router.post('/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
+    const images = req.files;
+
     try {
-        const location = req.files[0].location;
-        if (!location) {
-            return res.status(400).send({
-                message: '이미지 없음',
-            });
-        }
-        console.log(location);
-        await pool.query(
-            `INSERT INTO
-                    post_img(
-                        post_idx,
-                        img_path
-                    )
-                VALUES 
-                    ($1, $2)`,
-            [postIdx, location]
-        );
-        res.status(200).send({ data: location });
-    } catch (err) {
-        next(err);
+        if (!images) return res.status(400).send({ message: '이미지가 없습니다' });
+
+        res.status(201).send({ data: images[0].location });
+    } catch (e) {
+        next(e);
     }
 });
 
