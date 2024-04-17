@@ -657,7 +657,20 @@ router.delete('/', checkLogin, async (req, res, next) => {
 router.get('/notification', checkLogin, async (req, res, next) => {
     try {
         const { userIdx } = req.decoded;
-        const lastIdx = req.query.lastidx || 1;
+        const firstLastIdx = `
+         SELECT
+            *
+        FROM
+            notification
+        WHERE
+            user_idx=$1
+        ORDER BY
+            idx
+        DESC LIMIT 1`;
+        const firstLastIdxResult = await pool.query(firstLastIdx, [userIdx]);
+        const returnfisrtLastIdx = firstLastIdxResult.rows[0].idx;
+        console.log(returnfisrtLastIdx);
+        const lastIdx = req.query.lastidx || returnfisrtLastIdx + 1;
 
         // 사용자의 알람 조회
         const noti = `SELECT
@@ -673,15 +686,16 @@ router.get('/notification', checkLogin, async (req, res, next) => {
         WHERE
             n.user_idx = $1
         AND
-            n.idx > $2
+            n.idx < $2
         AND 
             n.deleted_at IS NULL
         ORDER BY
             n.idx DESC
-        LIMIT 20;`;
+        LIMIT 20`;
 
         const notifications = await pool.query(noti, [userIdx, lastIdx]);
-        const returnLastIdx = notifications.rows[0].idx;
+        const list = notifications.rows;
+        const returnLastIdx = list[list.length - 1]?.idx;
         if (notifications.rows.length === 0) {
             return res.status(204).send(userIdx + '번 사용자의 알람이 없습니다.');
         }
