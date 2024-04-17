@@ -7,34 +7,11 @@ const { handleValidationErrors } = require('../middlewares/validator');
 const { uploadS3 } = require('../middlewares/upload');
 
 //Apis
-//게시글 임시작성
-router.post('/', checkLogin, async (req, res, next) => {
-    const gameIdx = parseInt(req.query.gameidx);
-    const userIdx = parseInt(req.decoded.userIdx);
-    try {
-        const result = await pool.query(
-            `INSERT INTO
-                post(
-                    user_idx,
-                    game_idx,
-                    created_at
-                )
-            VALUES
-                ($1, $2, null)
-            RETURNING
-                idx AS "postIdx"`,
-            [userIdx, gameIdx]
-        );
-        res.status(201).send({ data: result.rows[0] });
-    } catch (err) {
-        next(err);
-    }
-});
 
 //게시글 업로드
 //이 api는 프론트와 상의 후 수정하기로..
 router.post(
-    '/:postidx',
+    '/',
     checkLogin,
     body('title').trim().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자로 입력해주세요'),
     body('content')
@@ -44,50 +21,41 @@ router.post(
     handleValidationErrors,
     async (req, res, next) => {
         const { title, content } = req.body;
-        const postIdx = parseInt(req.params.postidx);
+        const gameIdx = parseInt(req.query.gameidx);
+        const userIdx = parseInt(req.decoded.userIdx);
         try {
             const result = await pool.query(
-                `UPDATE
-                    post
-                SET
-                    title = $1, content = $2, created_at = now()
-                WHERE
-                    idx = $3
+                `INSERT INTO
+                post(
+                    user_idx,
+                    game_idx,
+                    title,
+                    content,
+                    created_at
+                )
+                VALUES
+                    ($1, $2, $3, $4, null)
                 RETURNING
                     game_idx AS "gameIdx"`,
-                [title, content, postIdx]
+                [userIdx, gameIdx, title, content]
             );
-            res.status(200).send({ data: result.rows[0] });
+            res.status(201).send({ data: result.rows[0] });
         } catch (err) {
             next(err);
         }
     }
 );
 
-//게시글 이미지 업로드
-router.post('/:postidx/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
-    const postIdx = parseInt(req.params.postidx);
+// 게시글 이미지 업로드
+router.post('/image', checkLogin, uploadS3.array('images', 1), async (req, res, next) => {
+    const images = req.files;
+
     try {
-        const location = req.files[0].location;
-        if (!location) {
-            return res.status(400).send({
-                message: '이미지 없음',
-            });
-        }
-        console.log(location);
-        await pool.query(
-            `INSERT INTO
-                    post_img(
-                        post_idx,
-                        img_path
-                    )
-                VALUES 
-                    ($1, $2)`,
-            [postIdx, location]
-        );
-        res.status(200).send({ data: location });
-    } catch (err) {
-        next(err);
+        if (!images) return res.status(400).send({ message: '이미지가 없습니다' });
+
+        res.status(201).send({ data: images[0].location });
+    } catch (e) {
+        next(e);
     }
 });
 
