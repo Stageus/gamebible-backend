@@ -119,7 +119,7 @@ router.post(
 
 //승인요청온 게임목록보기
 router.get('/game/request/all', checkLogin, checkAdmin, async (req, res, next) => {
-    const lastIdx = req.query.lastidx;
+    const lastIdx = req.query.lastidx || 99999999;
     try {
         let selectRequestSQLResult;
 
