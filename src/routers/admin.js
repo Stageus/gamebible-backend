@@ -116,26 +116,54 @@ router.post(
         }
     }
 );
+
 //승인요청온 게임목록보기
 router.get('/game/request/all', checkLogin, checkAdmin, async (req, res, next) => {
+    const lastIdx = req.query.lastidx;
     try {
-        const selectRequestSQLResult = await pool.query(
-            `SELECT
-                idx, user_idx AS "userIdx", title, is_confirmed AS "isConfirmed", created_at AS "createdAt"
-            FROM
-                request
-            WHERE 
-                deleted_at IS NULL
-            ORDER BY
-                created_at DESC`
-        );
-        const requestList = selectRequestSQLResult.rows;
+        let selectRequestSQLResult;
 
+        if (!lastIdx) {
+            // 최신 관리자알람 20개 출력
+            selectRequestSQLResult = await pool.query(`
+                SELECT
+                    idx, user_idx AS "userIdx", title, is_confirmed AS "isConfirmed", created_at AS "createdAt"
+                FROM
+                    request
+                WHERE 
+                    deleted_at IS NULL
+                ORDER BY
+                    idx DESC
+                LIMIT
+                    20`);
+        } else {
+            // lastIdx보다 작은 관리자알람 20개 출력
+            selectRequestSQLResult = await pool.query(
+                `
+                SELECT
+                    idx, user_idx AS "userIdx", title, is_confirmed AS "isConfirmed", created_at AS "createdAt"
+                FROM
+                    request
+                WHERE 
+                    deleted_at IS NULL
+                AND
+                    idx < $1
+                ORDER BY
+                    idx DESC
+                LIMIT
+                    20`,
+                [lastIdx]
+            );
+        }
+        const requestList = selectRequestSQLResult.rows;
         //요청없는 경우
         if (!requestList.length) return res.status(204).send();
 
         res.status(200).send({
-            data: requestList,
+            data: {
+                lastIdx: requestList[requestList.length - 1].idx,
+                requestList: requestList,
+            },
         });
     } catch (e) {
         next(e);
