@@ -11,7 +11,7 @@ const { uploadS3 } = require('../middlewares/upload');
 //게시글 업로드
 //이 api는 프론트와 상의 후 수정하기로..
 router.post(
-    '/:postidx',
+    '/',
     checkLogin,
     body('title').trim().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자로 입력해주세요'),
     body('content')
