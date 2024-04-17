@@ -60,6 +60,7 @@ router.post(
             // 비밀번호가 일치하면 토큰 생성
             const token = jwt.sign(
                 {
+                    kakaoLogin: false,
                     userIdx: user.user_idx,
                     isAdmin: user.is_admin,
                 },
@@ -914,6 +915,7 @@ router.get('/kakao/callback', async (req, res, next) => {
             }
         );
         return res.status(200).json({
+            kakaoLogin: true,
             idx: user.user_idx,
             id: response.data.id,
             email: response.data.kakao_account.email,
