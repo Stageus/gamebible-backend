@@ -48,7 +48,7 @@ router.post(
 
 //게임목록불러오기
 router.get('/all', async (req, res, next) => {
-    let { page } = req.query;
+    let { page } = req.query || 1;
     //20개씩 불러오기
     const skip = (page - 1) * 20;
 
