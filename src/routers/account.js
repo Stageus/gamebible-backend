@@ -60,7 +60,6 @@ router.post(
             // 비밀번호가 일치하면 토큰 생성
             const token = jwt.sign(
                 {
-                    kakaoLogin: false,
                     userIdx: user.user_idx,
                     isAdmin: user.is_admin,
                 },
@@ -70,7 +69,7 @@ router.post(
                 }
             );
 
-            res.status(200).send({ message: '로그인 성공', token: token, data: user });
+            res.status(200).send({ kakaoLogin: false, token: token, data: user });
         } catch (e) {
             next(e);
         }
