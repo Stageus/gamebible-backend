@@ -7,29 +7,6 @@ const { handleValidationErrors } = require('../middlewares/validator');
 const { uploadS3 } = require('../middlewares/upload');
 
 //Apis
-//게시글 임시작성
-router.post('/', checkLogin, async (req, res, next) => {
-    const gameIdx = parseInt(req.query.gameidx);
-    const userIdx = parseInt(req.decoded.userIdx);
-    try {
-        const result = await pool.query(
-            `INSERT INTO
-                post(
-                    user_idx,
-                    game_idx,
-                    created_at
-                )
-            VALUES
-                ($1, $2, null)
-            RETURNING
-                idx AS "postIdx"`,
-            [userIdx, gameIdx]
-        );
-        res.status(201).send({ data: result.rows[0] });
-    } catch (err) {
-        next(err);
-    }
-});
 
 //게시글 업로드
 //이 api는 프론트와 상의 후 수정하기로..
@@ -44,20 +21,25 @@ router.post(
     handleValidationErrors,
     async (req, res, next) => {
         const { title, content } = req.body;
-        const postIdx = parseInt(req.params.postidx);
+        const gameIdx = parseInt(req.query.gameidx);
+        const userIdx = parseInt(req.decoded.userIdx);
         try {
             const result = await pool.query(
-                `UPDATE
-                    post
-                SET
-                    title = $1, content = $2, created_at = now()
-                WHERE
-                    idx = $3
+                `INSERT INTO
+                post(
+                    user_idx,
+                    game_idx,
+                    title,
+                    content,
+                    created_at
+                )
+                VALUES
+                    ($1, $2, $3, $4, null)
                 RETURNING
                     game_idx AS "gameIdx"`,
-                [title, content, postIdx]
+                [userIdx, gameIdx, title, content]
             );
-            res.status(200).send({ data: result.rows[0] });
+            res.status(201).send({ data: result.rows[0] });
         } catch (err) {
             next(err);
         }
