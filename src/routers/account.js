@@ -69,7 +69,7 @@ router.post(
                 }
             );
 
-            res.status(200).send({ message: '로그인 성공', token: token, data: user });
+            res.status(200).send({ kakaoLogin: false, token: token, data: user });
         } catch (e) {
             next(e);
         }
@@ -914,6 +914,7 @@ router.get('/kakao/callback', async (req, res, next) => {
             }
         );
         return res.status(200).json({
+            kakaoLogin: true,
             idx: user.user_idx,
             id: response.data.id,
             email: response.data.kakao_account.email,
