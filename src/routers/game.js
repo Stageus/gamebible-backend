@@ -276,7 +276,6 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
         const game = selectGameSQLResult.rows[0];
 
         const historyList = selectHistorySQLResult.rows;
-        if (!historyList.length) return res.status(204).send();
 
         res.status(200).send({
             data: {
@@ -352,6 +351,9 @@ router.put(
         const gameIdx = req.params.gameidx;
         const { userIdx } = req.decoded;
         const { content } = req.body;
+        console.log('content: ', content);
+
+        console.log('게임수정완료API 실행되었습니다');
 
         let poolClient = null;
         try {
@@ -466,7 +468,7 @@ router.post(
                 [historyIdx, location]
             );
 
-            res.status(200).send({ data: location });
+            res.status(201).send({ data: location });
         } catch (e) {
             next(e);
         }
