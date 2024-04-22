@@ -27,7 +27,6 @@ const generateNotification = async (option) => {
 };
 
 /**
- *
  * @param {{
  *  conn: any,
  *  gameIdx: number,

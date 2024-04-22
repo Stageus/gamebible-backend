@@ -5,105 +5,165 @@ const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
 const { generateNotification } = require('../modules/generateNotification');
 
-// 게임 생성
-router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
-    const { requestIdx } = req.body;
-    let poolClient;
+// 게임 생성 요청 승인
+router.post(
+    '/game',
+    checkLogin,
+    checkAdmin,
+    uploadS3.fields([
+        { name: 'thumbnail', maxCount: 1 },
+        { name: 'banner', maxCount: 1 },
+    ]),
+    async (req, res, next) => {
+        const { userIdx } = req.decoded;
+        const { requestIdx } = req.body;
+        const { thumbnail, banner } = req.files;
+        let poolClient;
 
-    try {
-        poolClient = await pool.connect();
+        try {
+            if (!thumbnail || !banner) return res.status(400).send({ message: '이미지 없음' });
 
-        await poolClient.query('BEGIN');
+            poolClient = await pool.connect();
 
-        //요청삭제
-        await poolClient.query(
-            `UPDATE
+            //요청삭제, 제목,유저idx반환
+            const deleteRequestSQLResult = await poolClient.query(
+                `
+            UPDATE
                 request
             SET 
                 deleted_at = now(), is_confirmed = true
             WHERE 
-                idx = $1`,
-            [requestIdx]
-        );
+                idx = $1
+            RETURNING
+                user_idx AS "userIdx" , title`,
+                [requestIdx]
+            );
+            const request = deleteRequestSQLResult.rows[0];
 
-        //제목, 유저idx 불러오기
-        const selectRequestSQLResult = await poolClient.query(
-            `SELECT
-                title, user_idx
-            FROM
-                request
-            WHERE 
-                idx = $1`,
-            [requestIdx]
-        );
-        const selectedRequest = selectRequestSQLResult.rows[0];
+            //트랜잭션 시작
+            await poolClient.query('BEGIN');
 
-        await poolClient.query(
-            `INSERT INTO
-                game(title, user_idx)
-            VALUES
-                ( $1, $2 )`,
-            [selectedRequest.title, selectedRequest.user_idx]
-        );
+            //기존 게임중복확인
+            const selectEixsistingGameSQLResult = await poolClient.query(
+                `
+                SELECT
+                    *
+                FROM
+                    game
+                WHERE
+                    title = $1
+                AND
+                    deleted_at IS NULL`,
+                [request.title]
+            );
 
-        const selectLatestGameResult = await poolClient.query(
-            `SELECT 
-                idx
-            FROM
-                game
-            ORDER BY 
-                idx DESC
-            limit 1`
-        );
-        const latestGameIdx = selectLatestGameResult.rows[0].idx;
+            const existingGame = selectEixsistingGameSQLResult.rows[0];
+            if (existingGame) {
+                await poolClient.query('ROLLBACK');
+                return res.status(409).send({ message: '이미존재하는 게임입니다' });
+            }
 
-        await poolClient.query(
-            `INSERT INTO 
-                history(game_idx, user_idx)
-            VALUES( $1, $2 )`,
-            [latestGameIdx, selectedRequest.user_idx]
-        );
+            //새로운게임추가
+            const insertGameSQLResult = await poolClient.query(
+                `
+                INSERT INTO
+                    game(title, user_idx)
+                VALUES
+                    ( $1, $2 )
+                RETURNING
+                    idx AS "gameIdx"`,
+                [request.title, request.userIdx]
+            );
+            const gameIdx = insertGameSQLResult.rows[0].gameIdx;
 
-        //게임 썸네일, 배너이미지 등록
-        await poolClient.query(
-            `INSERT INTO
-            game_img_thumnail(game_idx)
-            VALUES ( $1 )`,
-            [latestGameIdx]
-        );
+            const newPostTitle = `새로운 게임 "${request.title}"이 생성되었습니다`;
+            const newPostContent = `많은 이용부탁드립니다~`;
 
-        await poolClient.query(
-            `
-            INSERT INTO
-                game_img_banner(game_idx)
-            VALUES ( $1 )`,
-            [latestGameIdx]
-        );
+            await poolClient.query(
+                `
+                INSERT INTO
+                    post(title, content, user_idx, game_idx)
+                VALUES
+                    ( $1, $2, $3, $4 )`,
+                [newPostTitle, newPostContent, userIdx, gameIdx]
+            );
 
-        res.status(201).send();
-        await poolClient.query('COMMIT');
-    } catch (e) {
-        await poolClient.query('ROLLBACK');
-        next(e);
-    } finally {
-        poolClient.release();
+            //게임 썸네일, 배너이미지 등록
+            await poolClient.query(
+                `
+                INSERT INTO
+                    game_img_thumbnail(game_idx, img_path)
+                VALUES ( $1, $2 )`,
+                [gameIdx, thumbnail[0].location]
+            );
+
+            await poolClient.query(
+                `
+                INSERT INTO
+                    game_img_banner(game_idx, img_path)
+                VALUES ( $1, $2 )`,
+                [gameIdx, banner[0].location]
+            );
+
+            await poolClient.query('COMMIT');
+
+            res.status(201).send();
+        } catch (e) {
+            await poolClient.query('ROLLBACK');
+            next(e);
+        } finally {
+            if (poolClient) poolClient.release();
+        }
     }
-});
+);
+
 //승인요청온 게임목록보기
-router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
+router.get('/game/request/all', checkLogin, checkAdmin, async (req, res, next) => {
+    const lastIdx = req.query.lastidx || 99999999;
     try {
-        const selectRequestSQLResult = await pool.query(
-            `SELECT
-                *
-            FROM
-                request
-            WHERE 
-                deleted_at IS NULL`
-        );
+        let selectRequestSQLResult;
+
+        if (!lastIdx) {
+            // 최신 관리자알람 20개 출력
+            selectRequestSQLResult = await pool.query(`
+                SELECT
+                    idx, user_idx AS "userIdx", title, is_confirmed AS "isConfirmed", created_at AS "createdAt"
+                FROM
+                    request
+                WHERE 
+                    deleted_at IS NULL
+                ORDER BY
+                    idx DESC
+                LIMIT
+                    20`);
+        } else {
+            // lastIdx보다 작은 관리자알람 20개 출력
+            selectRequestSQLResult = await pool.query(
+                `
+                SELECT
+                    idx, user_idx AS "userIdx", title, is_confirmed AS "isConfirmed", created_at AS "createdAt"
+                FROM
+                    request
+                WHERE 
+                    deleted_at IS NULL
+                AND
+                    idx < $1
+                ORDER BY
+                    idx DESC
+                LIMIT
+                    20`,
+                [lastIdx]
+            );
+        }
         const requestList = selectRequestSQLResult.rows;
+        //요청없는 경우
+        if (!requestList.length) return res.status(204).send();
 
         res.status(200).send({
-            data: requestList,
+            data: {
+                lastIdx: requestList[requestList.length - 1].idx,
+                requestList: requestList,
+            },
         });
     } catch (e) {
         next(e);
@@ -227,7 +287,7 @@ router.post(
 
 //대표이미지 등록하기
 router.post(
-    '/game/:gameidx/thumnail',
+    '/game/:gameidx/thumbnail',
     checkLogin,
     checkAdmin,
     uploadS3.array('images', 1),
@@ -242,7 +302,7 @@ router.post(
             //기존 썸네일 삭제
             await poolClient.query(
                 `UPDATE
-                    game_img_thumnail
+                    game_img_thumbnail
                 SET
                     deleted_at = now()
                 WHERE
@@ -254,7 +314,7 @@ router.post(
             //새로운 썸네일 등록
             await poolClient.query(
                 `INSERT INTO
-                    game_img_thumnail(game_idx, img_path)
+                    game_img_thumbnail(game_idx, img_path)
                 VALUES 
                     ( $1, $2 )`,
                 [gameIdx, location]
