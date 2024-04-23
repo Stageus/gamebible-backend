@@ -48,7 +48,7 @@ router.post(
 
 //게임목록불러오기
 router.get('/all', async (req, res, next) => {
-    let { page } = req.query || 1;
+    let page = req.query.page || 1;
     //20개씩 불러오기
     const skip = (page - 1) * 20;
 
@@ -138,7 +138,7 @@ router.get(
 
 //인기게임목록불러오기(게시글순)
 router.get('/popular', async (req, res, next) => {
-    const { page } = req.query || 1;
+    const page = req.query.page || 1;
 
     let skip;
     let count;
