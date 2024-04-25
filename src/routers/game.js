@@ -116,8 +116,12 @@ router.get(
                 ON 
                     g.idx = t.game_idx
                 WHERE
-                    title
+                    title_kor
                 LIKE 
+                    $1
+                OR
+                    title_eng
+                LIKE
                     $1 
                 AND
                     t.deleted_at IS NULL`,
