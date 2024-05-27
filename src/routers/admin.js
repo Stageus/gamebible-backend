@@ -16,7 +16,7 @@ router.post(
     ]),
     async (req, res, next) => {
         const { userIdx } = req.decoded;
-        const { requestIdx } = req.body;
+        const { requestIdx, title, titleKor, titleEng } = req.body;
         const { thumbnail, banner } = req.files;
         let poolClient;
 
@@ -43,22 +43,38 @@ router.post(
             //트랜잭션 시작
             await poolClient.query('BEGIN');
 
-            //기존 게임중복확인
-            const selectEixsistingGameSQLResult = await poolClient.query(
+            //기존 게임중복확인(영어)
+            const getGameWithTitleEng = await poolClient.query(
                 `
                 SELECT
                     *
                 FROM
                     game
                 WHERE
-                    title = $1
+                    title_eng = $1
                 AND
                     deleted_at IS NULL`,
-                [request.title]
+                [titleEng]
             );
 
-            const existingGame = selectEixsistingGameSQLResult.rows[0];
-            if (existingGame) {
+            //기존 게임중복확인(한글)
+            const getGameWithTitleKor = await poolClient.query(
+                `
+                SELECT
+                    *
+                FROM
+                    game
+                WHERE
+                    title_kor = $1
+                AND
+                    deleted_at IS NULL`,
+                [titleKor]
+            );
+
+            const existingGameWithTitleEng = getGameWithTitleEng.rows[0];
+            const existingGameWithTitleKor = getGameWithTitleKor.rows[0];
+
+            if (existingGameWithTitleEng || existingGameWithTitleKor) {
                 await poolClient.query('ROLLBACK');
                 return res.status(409).send({ message: '이미존재하는 게임입니다' });
             }
@@ -67,16 +83,16 @@ router.post(
             const insertGameSQLResult = await poolClient.query(
                 `
                 INSERT INTO
-                    game(title, user_idx)
+                    game(title, title_kor, title_eng ,user_idx)
                 VALUES
-                    ( $1, $2 )
+                    ( $1, $2, $3, $4 )
                 RETURNING
                     idx AS "gameIdx"`,
-                [request.title, request.userIdx]
+                [title, titleKor, titleEng, request.userIdx]
             );
             const gameIdx = insertGameSQLResult.rows[0].gameIdx;
 
-            const newPostTitle = `새로운 게임 "${request.title}"이 생성되었습니다`;
+            const newPostTitle = `새로운 게임 "${title}"이 생성되었습니다`;
             const newPostContent = `많은 이용부탁드립니다~`;
 
             await poolClient.query(
@@ -204,7 +220,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                 game(user_idx, title, deleted_at)
             VALUES
                 ( $1, $2, now())`,
-            [selectedRequest.user_idx, selectedRequest.title]
+            [selectedRequest.user_idx, selectedtitle]
         );
         // 방금 생성,삭제된 게임idx 추출
         const latestGameResult = await poolClient.query(
