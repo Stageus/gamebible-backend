@@ -51,8 +51,7 @@ router.post(
 
             const user = userRows[0];
             // bcrypt.compare 함수로 비밀번호 비교
-            const match = await bcrypt.compare(pw, user.pw);
-
+            const match = await bcrypt.compare(pw, user.pw);		
             if (!match) {
                 return res.status(401).send({ message: '비밀번호 일치하지 않음' });
             }
