@@ -13,7 +13,7 @@ const { uploadS3 } = require('../middlewares/upload');
 router.post(
     '/',
     checkLogin,
-    body('title').trim().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자로 입력해주세요'),
+    body('title').trim().isLength({ min: 2, max: 80 }).withMessage('제목은 2~80자로 입력해주세요'),
     body('content')
         .trim()
         .isLength({ min: 2, max: 10000 })
@@ -30,11 +30,10 @@ router.post(
                     user_idx,
                     game_idx,
                     title,
-                    content,
-                    created_at
+                    content
                 )
                 VALUES
-                    ($1, $2, $3, $4, null)
+                    ($1, $2, $3, $4)
                 RETURNING
                     game_idx AS "gameIdx"`,
                 [userIdx, gameIdx, title, content]
