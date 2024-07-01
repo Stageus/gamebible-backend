@@ -11,7 +11,7 @@ const { handleValidationErrors } = require('../middlewares/validator');
 router.post(
     '/',
     checkLogin,
-    body('title').trim().isLength({ min: 2, max: 40 }).withMessage('제목은 2~40자로 입력해주세요'),
+    body('title').trim().isLength({ min: 2, max: 80 }).withMessage('제목은 2~80자로 입력해주세요'),
     body('content')
         .trim()
         .isLength({ min: 2, max: 10000 })
