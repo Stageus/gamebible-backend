@@ -19,7 +19,6 @@ router.post(
         const { requestIdx, title, titleKor, titleEng } = req.body;
         const { thumbnail, banner } = req.files;
         let poolClient;
-
         try {
             if (!thumbnail || !banner) return res.status(400).send({ message: '이미지 없음' });
 
