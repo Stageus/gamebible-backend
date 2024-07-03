@@ -298,9 +298,6 @@ router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
     let historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
     try {
-        console.log('실행0');
-        console.log(historyIdx);
-        console.log(gameIdx);
         let game;
 
         const getGameTitleSQL = await pool.query(
