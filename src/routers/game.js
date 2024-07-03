@@ -298,29 +298,62 @@ router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
     let historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
     try {
+        console.log('실행0');
+        console.log(historyIdx);
+        console.log(gameIdx);
+        let game;
+
+        const getGameTitleSQL = await pool.query(
+            `
+            SELECT
+                *
+            FROM
+                game g
+            WHERE
+                idx = $1
+            AND
+                created_at IS NOT NULL
+        `,
+            [gameIdx]
+        );
+
+        game = getGameTitleSQL.rows[0];
+        if (!game) {
+            return res.status(404).send({ data: 'not found game' });
+        }
+
         if (!historyIdx) {
-            //가장 최신 히스토리idx 출력
+            //게임제목 반환
             const getLatestHistoryIdxSQLResult = await pool.query(
                 `
                 SELECT
-                    MAX(idx)
+                    max(idx)
                 FROM
-                    history
+                    history h
                 WHERE
-                    game_idx = $1
+                    game_idx =  $1
                 AND
-                    created_at IS NOT NULL
+                    deleted_at IS NULL
             `,
                 [gameIdx]
             );
             historyIdx = getLatestHistoryIdxSQLResult.rows[0].max;
+
+            if (!historyIdx) {
+                return res.status(200).send({
+                    data: {
+                        title: game.title,
+                        gameIdx: game.idx,
+                    },
+                });
+            }
         }
 
         const getHistorySQLResult = await pool.query(
             //히스토리 idx, gameidx, useridx, 내용, 시간, 닉네임 출력
             `
             SELECT    
-                h.idx AS "historyIdx", h.game_idx AS "gameIdx", h.user_idx AS "userIdx", title ,content, h.created_at AS "createdAt", u.nickname 
+                h.idx, h.game_idx, h.user_idx, content, h.created_at, u.nickname 
             FROM 
                 history h
             JOIN
@@ -332,14 +365,26 @@ router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
             ON 
                 g.idx = h.game_idx
             WHERE 
-                h.idx = $1
+                game_idx = $1
             AND 
-                game_idx = $2`,
-            [historyIdx, gameIdx]
-        );
-        const history = getHistorySQLResult.rows;
+                h.idx = $2`,
 
-        res.status(200).send({ data: history });
+            //가장최신쿼리 내부쿼리로적용
+            [gameIdx, historyIdx]
+        );
+        const history = getHistorySQLResult.rows[0];
+
+        res.status(200).send({
+            data: {
+                title: game.title,
+                gameIdx: game.idx,
+                historyIdx: history.idx,
+                userIdx: history.user_idx,
+                content: history.content,
+                createAt: history.created_at,
+                nickname: history.nickname,
+            },
+        });
     } catch (e) {
         next(e);
     }
