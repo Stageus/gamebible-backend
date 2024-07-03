@@ -1,12 +1,12 @@
 const { pool } = require('../config/postgres');
 
 /**
- *
+ * gameIdx, postIdx중에서 필요한 값만 넣어주세요
  * @param {{
  *  conn: any,
  *  type: 'DENY_GAME'| 'MODIFY_GAME' | 'MAKE_COMMENT' |,
- *  gameIdx: number,
- *  postIdx: number,
+ *  gameIdx: number | null,
+ *  postIdx: number | null,
  *  toUserIdx: number,
  * }} option
  */
