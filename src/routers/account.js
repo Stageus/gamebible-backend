@@ -742,7 +742,7 @@ router.get('/auth/kakao', (req, res, next) => {
     url += `&redirect_uri=${process.env.REDIRECT_URI}`;
 
     //send가아니라 리다이렉트아님?
-    res.redirect(url);
+    res.send({ data: url });
 });
 
 //카카오톡 로그인(회원가입)
