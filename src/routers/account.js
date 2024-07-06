@@ -51,7 +51,7 @@ router.post(
 
             const user = userRows[0];
             // bcrypt.compare 함수로 비밀번호 비교
-            const match = await bcrypt.compare(pw, user.pw);		
+            const match = await bcrypt.compare(pw, user.pw);
             if (!match) {
                 return res.status(401).send({ message: '비밀번호 일치하지 않음' });
             }
@@ -743,8 +743,13 @@ router.delete('/notification/:notificationId', checkLogin, async (req, res, next
 
 //카카오 로그인(회원가입)경로
 router.get('/auth/kakao', (req, res, next) => {
-    const kakao = process.env.KAKAO_LOGIN_AUTH;
-    res.status(200).send({ data: kakao });
+    let url = `https://kauth.kakao.com/oauth/authorize`;
+    url += `?response_type=code`;
+    url += `&client_id=${process.env.REST_API_KEY}`;
+    url += `&redirect_uri=${process.env.REDIRECT_URI}`;
+
+    //send가아니라 리다이렉트아님?
+    res.redirect(url);
 });
 
 //카카오톡 로그인(회원가입)
@@ -775,8 +780,8 @@ router.get('/kakao/callback', async (req, res, next) => {
                 },
             }
         );
+
         const ACCESS_TOKEN = data.access_token;
-        console.log(ACCESS_TOKEN);
         const config = {
             headers: {
                 Authorization: `Bearer ${ACCESS_TOKEN}`,
