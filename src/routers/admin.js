@@ -219,7 +219,7 @@ router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, r
                 game(user_idx, title, deleted_at)
             VALUES
                 ( $1, $2, now())`,
-            [selectedRequest.user_idx, selectedtitle]
+            [selectedRequest.user_idx, selectedRequest.title]
         );
         // 방금 생성,삭제된 게임idx 추출
         const latestGameResult = await poolClient.query(
