@@ -805,10 +805,10 @@ router.get('/kakao/callback', async (req, res, next) => {
                     deleted_at IS NULL`,
                 [userData.kakao_account.email]
             );
-            // if (duplicatedEmail.length > 0) {
-            //     await poolClient.query('ROLLBACK');
-            //     return res.status(409).send({ message: '일반 회원가입으로 가입된 사용자입니다.' });
-            // }
+            if (duplicatedEmail.length > 0) {
+                await poolClient.query('ROLLBACK');
+                return res.status(409).send({ message: '일반 회원가입으로 가입된 사용자입니다.' });
+            }
 
             const randomNickname = uuidv4();
 
