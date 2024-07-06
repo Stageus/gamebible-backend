@@ -14,6 +14,7 @@ const { uploadS3 } = require('../middlewares/upload');
 const { handleValidationErrors } = require('../middlewares/validator');
 const { hashPassword } = require('../modules/hashPassword');
 const { default: axios } = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
 //로그인
 router.post(
@@ -103,7 +104,6 @@ router.post(
             if (!isadmin) {
                 isadmin = false;
             }
-            console.log(id, pw, nickname, email, isadmin);
             poolClient = await pool.connect();
             await poolClient.query('BEGIN');
 
@@ -173,7 +173,6 @@ router.post(
             const userResult = await poolClient.query(insertUserSql, userValues);
             if (userResult.rows.length === 0) {
                 await poolClient.query('ROLLBACK');
-                console.log('트랜젝션');
                 return res.status(204).send({ message: '회원가입 실패' });
             }
             const userIdx = userResult.rows[0].idx;
@@ -192,7 +191,6 @@ router.post(
 
             if (accountResult.rows.length === 0) {
                 await poolClient.query('ROLLBACK');
-                console.log('트랜젝션');
                 return res.status(204).send({ message: '회원가입 실패' });
             }
             await poolClient.query('COMMIT');
@@ -494,7 +492,6 @@ router.put(
     async (req, res, next) => {
         const { userIdx } = req.decoded;
         const { nickname, email } = req.body;
-        console.log(nickname, email);
         try {
             const userInfoSql = `
             SELECT
@@ -513,8 +510,6 @@ router.put(
                 return res.status(204).send('사용자 정보 조회 실패');
 
             const { nickname: userNickname, email: userEmail } = userInfoResults.rows[0];
-            console.log(userNickname, userEmail);
-            console.log(nickname, email);
             //닉네임 중복 확인
             const checkNicknameSql = `
             SELECT
@@ -606,7 +601,6 @@ router.put('/image', checkLogin, uploadS3.single('image'), async (req, res, next
         WHERE
             user_idx = $1`;
             await poolClient.query(deleteImageSql, [userIdx]);
-            console.log('이전 이미지 삭제');
         }
         const imageSql = `
         INSERT INTO 
@@ -668,7 +662,6 @@ router.get('/notification', checkLogin, async (req, res, next) => {
         DESC LIMIT 1`;
         const firstLastIdxResult = await pool.query(firstLastIdx, [userIdx]);
         const returnfisrtLastIdx = firstLastIdxResult.rows[0].idx;
-        console.log(returnfisrtLastIdx);
         const lastIdx = req.query.lastidx || returnfisrtLastIdx + 1;
 
         // 사용자의 알람 조회
@@ -755,162 +748,110 @@ router.get('/auth/kakao', (req, res, next) => {
 //카카오톡 로그인(회원가입)
 router.get('/kakao/callback', async (req, res, next) => {
     const { code } = req.query;
-    REST_API_KEY = process.env.REST_API_KEY;
-    REDIRECT_URI = process.env.REDIRECT_URI;
-    const tokenRequestData = {
-        grant_type: 'authorization_code',
-        client_id: REST_API_KEY,
-        redirect_uri: REDIRECT_URI,
-        code,
-    };
-    let poolClient;
-    try {
-        const params = new URLSearchParams();
-        Object.keys(tokenRequestData).forEach((key) => {
-            params.append(key, tokenRequestData[key]);
-        });
 
-        // Axios POST 요청
-        const { data } = await axios.post(
-            'https://kauth.kakao.com/oauth/token',
-            params.toString(), // URLSearchParams 객체를 문자열로 변환
+    let poolClient;
+    let newUserInfo;
+    let newKakaoUserInfo;
+    try {
+        //토큰요청
+        const { data: tokenData } = await axios.post(
+            `https://kauth.kakao.com/oauth/token`,
             {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                grant_type: 'authorization_code',
+                client_id: process.env.REST_API_KEY,
+                redirect_uri: process.env.REDIRECT_URI,
+                code,
+            },
+            {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             }
         );
 
-        const ACCESS_TOKEN = data.access_token;
-        const config = {
+        const { data: userData } = await axios.get('https://kapi.kakao.com/v2/user/me', {
             headers: {
-                Authorization: `Bearer ${ACCESS_TOKEN}`,
+                Authorization: `Bearer ${tokenData.access_token}`,
             },
-        };
-        const response = await axios.get('https://kapi.kakao.com/v2/user/me', config);
+        });
 
         poolClient = await pool.connect();
         await poolClient.query('BEGIN');
 
-        const kakaoSql = `
-        SELECT
-            *
-        FROM
-            account_kakao ak
-        JOIN
-            "user" u ON ak.user_idx = u.idx
-        WHERE
-        ak.kakao_key = $1 AND u.deleted_at IS NULL`;
-        const kakaoResult = await poolClient.query(kakaoSql, [response.data.id]);
-
-        //중복 사용자가 없다면(회원가입)
-        if (kakaoResult.rows.length === 0) {
-            console.log('회원가입: ');
-            //이메일 중복 확인
-            const checkEmailSql = `
-            SELECT
+        const { rows: existingKakaoUser } = await poolClient.query(
+            `SELECT
                 *
             FROM
-                "user"
+                account_kakao ak
+            JOIN
+                "user" u ON ak.user_idx = u.idx
             WHERE
-            email = $1
-            AND
-                deleted_at IS NULL`;
-
-            const checkEmailvalue = [response.data.kakao_account.email];
-            const emailResults = await poolClient.query(checkEmailSql, checkEmailvalue);
-            if (emailResults.rows.length > 0) {
-                await poolClient.query('ROLLBACK');
-                return res.status(409).send('일반 회원가입으로 가입된 사용자입니다.');
-            }
-
-            //랜덤 닉네임 생성
-            function generateRandomString(length) {
-                let result = '';
-                let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                let charactersLength = characters.length;
-                for (let i = 0; i < length; i++) {
-                    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-                }
-                return result;
-            }
-            let randomNickname = generateRandomString(20);
-            //닉네임 중복 확인
-            const checkNicknameSql = `
-            SELECT
-                * 
-            FROM
-                "user" 
-            WHERE 
-                nickname = $1 
+                ak.kakao_key = $1 
             AND 
-                deleted_at IS NULL`;
+                u.deleted_at IS NULL`,
+            [userData.id]
+        );
 
-            const value = [randomNickname];
-            const nicknameResults = await poolClient.query(checkNicknameSql, value);
-            if (nicknameResults.rows.length > 0) {
-                while (nicknameResults.rows.length > 0) {
-                    randomNickname = generateRandomString(20);
-                    nicknameResults = await poolClient.query(checkNicknameSql, value);
-                }
-            }
+        //중복 사용자가 없다면(회원가입)
+        if (existingKakaoUser.length === 0) {
+            //이메일 중복 확인
+            const { rows: duplicatedEmail } = await poolClient.query(
+                `
+                SELECT
+                    *
+                FROM
+                    "user"
+                WHERE
+                    email = $1
+                AND
+                    deleted_at IS NULL`,
+                [userData.kakao_account.email]
+            );
+            // if (duplicatedEmail.length > 0) {
+            //     await poolClient.query('ROLLBACK');
+            //     return res.status(409).send({ message: '일반 회원가입으로 가입된 사용자입니다.' });
+            // }
 
-            const kakaoAuthSql = `
-              INSERT INTO
-                "user"(
-                    nickname,
-                    email,
-                    is_admin
-                    ) 
-            VALUES ($1, $2, $3)
-            RETURNING idx
-            `;
-            const kakaoResult = await poolClient.query(kakaoAuthSql, [
-                randomNickname,
-                response.data.kakao_account.email,
-                false, //굳이 관리자 권한 안 줘도 되겠지?
-            ]);
-            if (kakaoResult.rows.length === 0) {
+            const randomNickname = uuidv4();
+
+            const { rows: newUserSQLResult } = await poolClient.query(
+                `INSERT INTO
+                     "user"(nickname,email,is_admin)
+                VALUES 
+                    ($1, $2, $3)
+                 RETURNING 
+                    idx, nickname, email, is_admin as "isAdmin", created_at as "createdAt"`,
+                [randomNickname, userData.kakao_account.email, false]
+            );
+
+            newUserInfo = newUserSQLResult[0];
+
+            if (!newUserInfo) {
                 await poolClient.query('ROLLBACK');
-                return res.status(204).send('카카오 회원가입 실패');
+                return res.status(204).send({ message: '카카오 회원가입 실패' });
             }
 
-            const userIdx = kakaoResult.rows[0].idx;
+            const { rows: newKakaoUserSQLResult } = await poolClient.query(
+                `INSERT INTO
+                    account_kakao (user_idx, kakao_key)
+                VALUES 
+                    ($1, $2)
+                RETURNING 
+                    *`,
+                [newUserInfo.idx, userData.id]
+            );
 
-            const insertAccountSql = `
-            INSERT INTO
-                account_kakao (
-                    user_idx, 
-                    kakao_key
-                    )
-            VALUES ($1, $2)
-            RETURNING *`;
-            const accountValues = [userIdx, response.data.id];
-            const accountResult = await poolClient.query(insertAccountSql, accountValues);
+            newKakaoUserInfo = newKakaoUserSQLResult[0];
 
-            if (accountResult.rows.length === 0) {
+            if (!newKakaoUserInfo) {
                 await poolClient.query('ROLLBACK');
                 return res.status(204).send({ message: '카카오 회원가입 실패' });
             }
         }
 
-        const values = [response.data.id];
-
-        const { rows: userRows } = await poolClient.query(kakaoSql, values);
-
-        if (userRows.length === 0) {
-            return res.status(204).send({ message: '카카오톡 로그인 실패' });
-        }
-
-        const user = userRows[0];
-
-        await poolClient.query('COMMIT');
-
         const token = jwt.sign(
             {
-                id: response.data.id,
-                userIdx: user.user_idx,
-                isAdmin: user.is_admin,
+                id: userData.id,
+                userIdx: newUserInfo.idx,
+                isAdmin: newUserInfo.isAdmin,
             },
             process.env.SECRET_KEY,
             {
@@ -919,9 +860,9 @@ router.get('/kakao/callback', async (req, res, next) => {
         );
         return res.status(200).json({
             kakaoLogin: true,
-            idx: user.user_idx,
-            id: response.data.id,
-            email: response.data.kakao_account.email,
+            idx: newUserInfo.idx,
+            id: userData.id,
+            email: userData.kakao_account.email,
             token: token,
         });
     } catch (error) {
@@ -932,9 +873,7 @@ router.get('/kakao/callback', async (req, res, next) => {
 //카카오톡 탈퇴
 router.delete('/auth/kakao', checkLogin, async (req, res, next) => {
     const SERVICE_APP_ADMIN_KEY = process.env.ADMIN_KEY;
-    console.log(SERVICE_APP_ADMIN_KEY);
     const { id, userIdx } = req.decoded;
-    console.log(id, userIdx);
 
     try {
         const response = await axios.post(
