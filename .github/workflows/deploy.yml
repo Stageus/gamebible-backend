@@ -1,0 +1,16 @@
+name: 게임바이블 배포스크립트
+
+on:
+    pull_request:
+        types:
+            - closed
+        branches:
+            - master
+
+jobs:
+    if_merged:
+        if: github.event.pull_request.merged == true
+        runs_on: ubuntu-latest
+        steps:
+            -run: |
+                echo  "PR was merged"
