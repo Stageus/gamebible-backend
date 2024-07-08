@@ -741,7 +741,6 @@ router.get('/auth/kakao', (req, res, next) => {
     url += `&client_id=${process.env.REST_API_KEY}`;
     url += `&redirect_uri=${process.env.REDIRECT_URI}`;
 
-    //send가아니라 리다이렉트아님?
     res.send({ data: url });
 });
 
