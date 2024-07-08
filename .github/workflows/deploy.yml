@@ -12,5 +12,6 @@ jobs:
         if: github.event.pull_request.merged == true
         runs-on: ubuntu-latest
         steps:
-            -run: |
+            -name: 머지확인
+             run: |
                 echo  "PR was merged"
