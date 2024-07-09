@@ -18,6 +18,8 @@ jobs:
                   cd ../gamebible-backend/
                   pwd
                   ls -la
+                  ls -a
+                  ls
                   if [ -d .git ]; then echo ".git directory exists"; else echo ".git directory does not exist"; fi
                   git pull origin master
                   sudo pm2 restart 0
