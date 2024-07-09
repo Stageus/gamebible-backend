@@ -16,5 +16,6 @@ jobs:
               run: |
                   echo "PR was merged"
                   cd ../gamebible-backend/
+                  pwd
                   git pull origin master
                   sudo pm2 restart 0
