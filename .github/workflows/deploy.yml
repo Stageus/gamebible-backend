@@ -12,9 +12,10 @@ jobs:
         if: github.event.pull_request.merged == true
         runs-on: self-hosted
         steps:
-            - name: 머지확인
-              run: |
+            - name: 레포지토리 체크아웃
+              uses: actions/checkout@v2
 
+            - name: 코드 업데이트, 재실행
                   echo "PR was merged"
                   pwd
                   cd ./../gamebible-backend/
