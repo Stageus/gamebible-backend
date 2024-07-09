@@ -16,6 +16,7 @@ jobs:
               uses: actions/checkout@v2
 
             - name: 코드 업데이트, 재실행
+              run: |
                   echo "PR was merged"
                   pwd
                   cd ./../gamebible-backend/
