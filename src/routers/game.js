@@ -397,9 +397,6 @@ router.put(
         const gameIdx = req.params.gameidx;
         const { userIdx } = req.decoded;
         const { content } = req.body;
-        console.log('content: ', content);
-
-        console.log('게임수정완료API 실행되었습니다');
 
         let poolClient = null;
         try {
