@@ -16,11 +16,10 @@ jobs:
               run: |
 
                   echo "PR was merged"
-                  cd ../gamebible-backend/
                   pwd
-                  ls -la
+                  cd ./../gamebible-backend/
+                  pwd
                   ls -a
-                  ls
                   if [ -d .git ]; then echo ".git directory exists"; else echo ".git directory does not exist"; fi
                   git pull origin master
                   k1ju
