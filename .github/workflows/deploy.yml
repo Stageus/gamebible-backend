@@ -15,6 +15,6 @@ jobs:
             - name: 머지확인
               run: |
                   echo "PR was merged"
-                  cd gamebible/gamebible-backend/
+                  cd ../gamebible-backend/
                   git pull origin master
                   sudo pm2 restart 0
