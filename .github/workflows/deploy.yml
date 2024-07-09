@@ -17,5 +17,7 @@ jobs:
                   echo "PR was merged"
                   cd ../gamebible-backend/
                   pwd
+                  ls -la
+                  if [ -d .git ]; then echo ".git directory exists"; else echo ".git directory does not exist"; fi
                   git pull origin master
                   sudo pm2 restart 0
