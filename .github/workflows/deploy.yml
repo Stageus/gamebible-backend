@@ -14,8 +14,7 @@ jobs:
         steps:
             - name: 머지확인
               run: |
-                  k1ju
-                  ${{  secrets.TOKEN  }}
+
                   echo "PR was merged"
                   cd ../gamebible-backend/
                   pwd
@@ -24,4 +23,6 @@ jobs:
                   ls
                   if [ -d .git ]; then echo ".git directory exists"; else echo ".git directory does not exist"; fi
                   git pull origin master
+                  k1ju
+                  ${{  secrets.TOKEN  }}
                   sudo pm2 restart 0
