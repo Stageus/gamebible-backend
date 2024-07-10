@@ -18,6 +18,7 @@ jobs:
             - name: 코드 업데이트, 재실행
               run: |
                   echo "PR was merged"
+                  pwd
                   cd ./../gamebible-backend/
                   git pull origin master
                   sudo pm2 restart 0
