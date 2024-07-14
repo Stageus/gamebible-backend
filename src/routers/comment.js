@@ -17,7 +17,6 @@ router.post(
         .withMessage('내용은 1~1000자로 입력해주세요'),
     async (req, res, next) => {
         const content = req.body.content;
-        const gameIdx = parseInt(req.query.gameidx);
         const postIdx = parseInt(req.query.postidx);
         let poolClient;
         try {
@@ -53,7 +52,6 @@ router.post(
             await generateNotification({
                 conn: poolClient,
                 type: 'MAKE_COMMENT',
-                gameIdx: gameIdx,
                 postIdx: postIdx,
                 toUserIdx: data.rows[0].user_idx,
             });
@@ -87,7 +85,6 @@ router.get('/all', checkLogin, async (req, res, next) => {
                 deleted_at IS NULL`,
             [postIdx]
         );
-        const userIdx = req.decoded.userIdx;
         //20개씩 불러오기
         const result = await pool.query(
             `
