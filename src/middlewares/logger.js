@@ -52,7 +52,7 @@ const logger = async (req, res, next) => {
 };
 
 const deleteLogJob = new CronJob(
-    '0 45 15 * * *',
+    '0 0 0 * * *',
     async function () {
         console.log('cron 시작');
         try {
