@@ -51,10 +51,13 @@ const logger = async (req, res, next) => {
     next();
 };
 
-const deleteLogJob = new CronJob('0 20 15 * * *', async function () {
-    try {
-        await pool.query(
-            `DELETE 
+const deleteLogJob = new CronJob(
+    '0 45 15 * * *',
+    async function () {
+        console.log('cron 시작');
+        try {
+            await pool.query(
+                `DELETE 
             FROM
                 log
             WHERE
@@ -67,13 +70,14 @@ const deleteLogJob = new CronJob('0 20 15 * * *', async function () {
                     idx DESC 
                 LIMIT 
                     1)`
-        ),
-            null,
-            true,
-            'Asia/Seoul';
-    } catch (err) {
-        console.log('Error', err.stackTrace);
-    }
-});
+            );
+        } catch (err) {
+            console.log('Error', err.stackTrace);
+        }
+    },
+    null,
+    true,
+    'Asia/Seoul'
+);
 
 module.exports = { logger };
