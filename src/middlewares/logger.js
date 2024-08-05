@@ -51,7 +51,7 @@ const logger = async (req, res, next) => {
     next();
 };
 
-const deleteLogJob = new CronJob('0 12 15 * * *', async function () {
+const deleteLogJob = new CronJob('0 20 15 * * *', async function () {
     try {
         await pool.query(
             `DELETE 
