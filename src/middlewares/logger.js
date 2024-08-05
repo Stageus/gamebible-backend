@@ -1,3 +1,4 @@
+const { CronJob } = require('cron');
 const { pool } = require('../config/postgres');
 
 const logger = async (req, res, next) => {
@@ -49,5 +50,30 @@ const logger = async (req, res, next) => {
     });
     next();
 };
+
+const deleteLogJob = new CronJob('0 12 15 * * *', async function () {
+    try {
+        await pool.query(
+            `DELETE 
+            FROM
+                log
+            WHERE
+                idx NOT IN 
+                ( SELECT 
+                    idx 
+                FROM 
+                    log 
+                ORDER BY 
+                    idx DESC 
+                LIMIT 
+                    1)`
+        ),
+            null,
+            true,
+            'Asia/Seoul';
+    } catch (err) {
+        console.log('Error', err.stackTrace);
+    }
+});
 
 module.exports = { logger };
