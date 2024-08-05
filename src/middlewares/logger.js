@@ -52,7 +52,7 @@ const logger = async (req, res, next) => {
 };
 
 const deleteLogJob = new CronJob(
-    '0 0 0 * * *',
+    '0 20 16 * * *',
     async function () {
         console.log('cron 시작');
         try {
@@ -69,7 +69,7 @@ const deleteLogJob = new CronJob(
                 ORDER BY 
                     idx DESC 
                 LIMIT 
-                    1)`
+                    100)`
             );
         } catch (err) {
             console.log('Error', err.stackTrace);
